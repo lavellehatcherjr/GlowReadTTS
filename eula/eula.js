@@ -1,11 +1,11 @@
 'use strict';
 
-const EULA_VERSION = '1.0';
+const EULA_VERSION = '1.1';
 
 const EULA_TEXT = `
 END USER LICENSE AGREEMENT
 
-Last Updated: May 6, 2026
+Last Updated: May 7, 2026
 
 IMPORTANT — READ CAREFULLY BEFORE USING THIS SOFTWARE.
 
@@ -45,7 +45,7 @@ SECTION 3: PROHIBITED USES AND AI VOICE RESTRICTIONS
 (j) Interfere with, disrupt, or place undue burden on any network, server, or system through use of the Software.
 
 3.2 AI VOICE SPECIFIC PROHIBITIONS. The AI voice functionality included in the Software uses pre-trained neural network models that generate synthetic speech. You additionally shall not:
-(a) Use AI-generated speech to create content that violates any applicable synthetic media, deepfake, or AI transparency law, including but not limited to the EU AI Act (Article 50), the US TAKE IT DOWN Act, state-level deepfake legislation (including but not limited to Tennessee's ELVIS Act, California's AI Transparency Act, and similar statutes in other jurisdictions), or any equivalent law in your jurisdiction.
+(a) Use AI-generated speech to create content that violates any applicable synthetic media, deepfake, or AI transparency law, including but not limited to Japan's AI Promotion Act, the EU AI Act (Article 50), the US TAKE IT DOWN Act, state-level deepfake legislation (including but not limited to Tennessee's ELVIS Act, California's AI Transparency Act, and similar statutes in other jurisdictions), or any equivalent law in your jurisdiction.
 (b) Distribute AI-generated speech without appropriate disclosure that the audio was synthetically generated, where such disclosure is required by applicable law.
 (c) Use AI-generated speech to manipulate elections, deceive voters, or create false political communications.
 (d) Attempt to use the Software to clone, replicate, or approximate any specific person's voice. The Software does not support voice cloning and any attempt to use it for this purpose is a violation of this Agreement.
@@ -126,9 +126,9 @@ SECTION 9: DISPUTE RESOLUTION
 
 9.1 INFORMAL RESOLUTION. Before initiating any formal legal proceeding, you agree to first contact the Developer at the contact information provided in the Privacy Policy and attempt to resolve the dispute informally for a period of at least thirty (30) days.
 
-9.2 GOVERNING LAW. This Agreement shall be governed by and construed in accordance with the laws of the United States and the state in which the Developer resides, without regard to conflict of law principles.
+9.2 GOVERNING LAW. This Agreement shall be governed by and construed in accordance with the laws of Japan, without regard to conflict of law principles.
 
-9.3 JURISDICTION. Any legal action or proceeding arising under this Agreement shall be brought exclusively in the federal or state courts located in the Developer's state of residence, and you hereby consent to the personal jurisdiction and venue of such courts.
+9.3 JURISDICTION. Any legal action or proceeding arising under this Agreement shall be brought exclusively in the courts of Japan having jurisdiction over the Developer's place of residence, and you hereby consent to the personal jurisdiction and venue of such courts.
 
 9.4 WAIVER OF CLASS ACTION. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, YOU AGREE THAT ANY DISPUTE RESOLUTION PROCEEDINGS WILL BE CONDUCTED ONLY ON AN INDIVIDUAL BASIS AND NOT IN A CLASS, CONSOLIDATED, OR REPRESENTATIVE ACTION. IF THIS WAIVER IS FOUND TO BE UNENFORCEABLE, THEN THE ENTIRETY OF THIS DISPUTE RESOLUTION SECTION SHALL BE NULL AND VOID.
 
@@ -177,7 +177,7 @@ SECTION 12: GENERAL PROVISIONS
 const PRIVACY_TEXT = `
 PRIVACY POLICY
 
-Last Updated: May 6, 2026
+Last Updated: May 7, 2026
 
 Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS browser extension ("Software"). This Privacy Policy describes how we handle information when you use the Software. By using the Software, you agree to the practices described in this Privacy Policy.
 
@@ -259,11 +259,13 @@ SECTION 7: CHILDREN'S PRIVACY
 
 SECTION 8: INTERNATIONAL PRIVACY LAW COMPLIANCE
 
-8.1 GDPR (European Union / European Economic Area / United Kingdom): The Software does not collect or process personal data as defined by the General Data Protection Regulation (EU) 2016/679 or the UK GDPR. As no personal data is processed, the legal bases for processing (Article 6), data subject rights (Articles 15-22), and data processing agreements (Article 28) do not apply. No data is transferred outside of your device.
+8.1 APPI (Japan, Primary Applicable Law): The Developer is based in Japan, and the Act on the Protection of Personal Information ("APPI") is the primary privacy framework applicable to the Developer's operation of the Software. The Software does not collect, process, transfer, or disclose personal information as defined under APPI Article 2. Because no personal information is handled, the obligations applicable to Personal Information Controllers under APPI Articles 17 through 28 (including obligations regarding purpose specification, consent for sensitive personal information, third-party transfers, and cross-border data transfers) do not arise from operation of the Software. The Software's zero-data-collection design ensures full compliance with APPI's principles of necessity, purpose limitation, and data minimization.
 
-8.2 CCPA / CPRA (California, United States): The Software does not sell, share, or collect personal information as defined under the California Consumer Privacy Act (Cal. Civ. Code § 1798.100 et seq.) or the California Privacy Rights Act. The Software does not engage in cross-context behavioral advertising or profiling.
+8.2 GDPR (European Union / European Economic Area / United Kingdom): The Software does not collect or process personal data as defined by the General Data Protection Regulation (EU) 2016/679 or the UK GDPR. As no personal data is processed, the legal bases for processing (Article 6), data subject rights (Articles 15-22), and data processing agreements (Article 28) do not apply. No data is transferred outside of your device.
 
-8.3 OTHER JURISDICTIONS: The Software's zero-data-collection design is intended to comply with privacy laws in all jurisdictions. Because no personal data is collected, transmitted, or processed, the Software imposes no data-related obligations on the user or the Developer beyond those described in this Privacy Policy.
+8.3 CCPA / CPRA (California, United States): The Software does not sell, share, or collect personal information as defined under the California Consumer Privacy Act (Cal. Civ. Code § 1798.100 et seq.) or the California Privacy Rights Act. The Software does not engage in cross-context behavioral advertising or profiling.
+
+8.4 OTHER JURISDICTIONS: The Software's zero-data-collection design is intended to comply with privacy laws in all jurisdictions. Because no personal data is collected, transmitted, or processed, the Software imposes no data-related obligations on the user or the Developer beyond those described in this Privacy Policy.
 
 
 SECTION 9: AI-GENERATED CONTENT TRANSPARENCY
