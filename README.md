@@ -6,7 +6,7 @@
 
 A Chrome extension that reads webpages, PDFs, and text files aloud using your browser's built-in TTS voices or downloadable on-device AI voices. Fully offline-capable, with no accounts, API keys, or data collection.
 
-### Premium TTS. Zero Cost. Total Control.
+### On-Device AI Voices. Highlight as You Read.
 
 ---
 
