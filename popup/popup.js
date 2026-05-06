@@ -122,19 +122,19 @@ function renderEulaGate() {
   container.textContent = '';
 
   const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'padding: 20px; text-align: center; color: white; font-family: sans-serif;';
+  wrapper.style.cssText = 'padding: 20px; text-align: center; color: #1A1815; background: #FAFAF7; font-family: Georgia, "Times New Roman", serif;';
 
   const heading = document.createElement('h3');
   heading.textContent = 'Terms Not Accepted';
-  heading.style.cssText = 'margin-bottom: 12px; font-size: 16px;';
+  heading.style.cssText = 'margin-bottom: 12px; font-size: 16px; font-family: Georgia, "Times New Roman", serif;';
 
   const msg = document.createElement('p');
   msg.textContent = 'You must accept the Terms of Use and Privacy Policy to use GlowReadTTS.';
-  msg.style.cssText = 'color: #9CA3AF; font-size: 13px; margin-bottom: 16px;';
+  msg.style.cssText = 'color: #6B6864; font-size: 13px; margin-bottom: 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;';
 
   const btn = document.createElement('button');
   btn.textContent = 'Review Terms';
-  btn.style.cssText = 'padding: 10px 20px; background: #5B4FE4; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;';
+  btn.style.cssText = 'padding: 10px 20px; background: #E8742C; color: #1A1815; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;';
   btn.addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('eula/eula.html') });
     window.close();
@@ -149,7 +149,7 @@ function renderFallbackMessage(target, message) {
   if (!target) return;
   target.textContent = '';
   const div = document.createElement('div');
-  div.style.cssText = 'padding: 20px; color: white;';
+  div.style.cssText = 'padding: 20px; color: #1A1815; background: #FAFAF7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;';
   div.textContent = message;
   target.append(div);
 }
@@ -159,18 +159,18 @@ function showError(error) {
   container.textContent = ''; // Clear safely
 
   const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'padding: 20px; color: white; font-family: sans-serif;';
+  wrapper.style.cssText = 'padding: 20px; color: #1A1815; background: #FAFAF7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;';
 
   const heading = document.createElement('h3');
-  heading.style.color = '#EF4444';
+  heading.style.cssText = 'color: #EF4444; font-family: Georgia, "Times New Roman", serif;';
   heading.textContent = 'Error Loading GlowReadTTS';
 
   const msg = document.createElement('p');
-  msg.style.cssText = 'color: #9CA3AF; font-size: 12px;';
+  msg.style.cssText = 'color: #6B6864; font-size: 12px; margin-top: 8px;';
   msg.textContent = error.message;
 
   const btn = document.createElement('button');
-  btn.style.cssText = 'margin-top: 10px; padding: 8px 16px; background: #5B4FE4; color: white; border: none; border-radius: 6px; cursor: pointer;';
+  btn.style.cssText = 'margin-top: 10px; padding: 8px 16px; background: #E8742C; color: #1A1815; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;';
   btn.textContent = 'Reload';
   btn.addEventListener('click', () => location.reload());
 
@@ -419,25 +419,24 @@ function setupEventListeners() {
 function handleTextInput(e) {
   const text = e.target.value;
   state.currentText = text;
-  
+
   const charCount = document.getElementById('char-count');
   if (charCount) {
     charCount.textContent = `${text.length} characters`;
-    
+
+    charCount.classList.remove('warning', 'error');
     if (text.length > 5000) {
-      charCount.style.color = '#EF4444';
+      charCount.classList.add('error');
     } else if (text.length > 2000) {
-      charCount.style.color = '#F59E0B';
-    } else {
-      charCount.style.color = '#9CA3AF';
+      charCount.classList.add('warning');
     }
   }
-  
+
   const readBtn = document.getElementById('btn-read-text');
   if (readBtn) {
     readBtn.disabled = text.trim().length === 0;
   }
-  
+
   sessionStorage.setItem('glowreadtts-text', text);
 }
 
