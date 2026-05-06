@@ -1,0 +1,24 @@
+GlowReadTTS Chrome Extension
+Copyright 2026 Lavelle Hatcher Jr
+
+This product includes the following third-party software:
+
+- pdfjs-dist (v5.5.207)
+  Copyright 2024 Mozilla Foundation
+  Licensed under the Apache License, Version 2.0
+  https://github.com/mozilla/pdf.js
+
+- Kokoro 82M ONNX Model
+  Copyright 2025 hexgrad
+  Licensed under the Apache License, Version 2.0
+  https://huggingface.co/hexgrad/Kokoro-82M
+
+- ONNX Runtime Web
+  Copyright Microsoft Corporation
+  Licensed under the MIT License
+  https://github.com/microsoft/onnxruntime
+
+- kokoro-js
+  Copyright 2025 Xenova / Hugging Face
+  Licensed under the Apache License, Version 2.0
+  https://github.com/hexgrad/kokoro
