@@ -106,15 +106,26 @@ function updateSpeed(e) {
 }
 
 async function saveSettings() {
-  const settings = {
+  const formValues = {
     voice: document.getElementById('default-voice').value,
     speed: parseFloat(document.getElementById('speed-slider').value),
     autoPlay: document.getElementById('auto-play').checked,
     saveHistory: document.getElementById('save-history').checked
   };
 
-  await chrome.storage.sync.set({ settings });
-  console.log('[GlowReadTTS Options] Settings saved:', settings);
+  // Read existing settings first so a concurrent popup write to settings.voice
+  // or settings.speed isn't clobbered by this save action.
+  const stored = await chrome.storage.sync.get('settings');
+  const merged = { ...(stored.settings || {}), ...formValues };
+
+  // Dual-write: nested `settings` for the options page's reads, plus flat
+  // `voice` and `speed` for the popup and service-worker context-menu flow.
+  await chrome.storage.sync.set({
+    settings: merged,
+    voice: merged.voice,
+    speed: merged.speed
+  });
+  console.log('[GlowReadTTS Options] Settings saved:', merged);
 }
 
 console.log('[GlowReadTTS Options] Page loaded');
