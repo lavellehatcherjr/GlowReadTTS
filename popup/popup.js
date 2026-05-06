@@ -738,10 +738,19 @@ async function handleVoiceChange(e) {
   }
 }
 
-function handleSpeedChange(e) {
+async function handleSpeedChange(e) {
   state.currentSpeed = parseFloat(e.target.value);
   document.getElementById('speed-value').textContent = `${state.currentSpeed}x`;
-  chrome.storage.sync.set({ speed: state.currentSpeed });
+  // Dual-write to flat `speed` and nested `settings.speed` so the popup,
+  // options page, and service-worker context-menu flow all see the same value.
+  await chrome.storage.sync.set({ speed: state.currentSpeed });
+  const stored = await chrome.storage.sync.get('settings');
+  const settings = stored.settings || {};
+  await chrome.storage.sync.set({ settings: { ...settings, speed: state.currentSpeed } });
+
+  if (state.isPlaying) {
+    handleStop();
+  }
 }
 
 // Main TTS Function
