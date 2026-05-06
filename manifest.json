@@ -1,0 +1,72 @@
+{
+  "manifest_version": 3,
+  "name": "GlowReadTTS — Text to Speech Voice Reader",
+  "short_name": "GlowReadTTS",
+  "version": "1.0.0",
+  "description": "Free text-to-speech with offline AI voices, highlight-as-you-read, PDF support, and total privacy.",
+  "author": "Lavelle Hatcher Jr",
+  
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png",
+    "256": "assets/icon-256.png"
+  },
+  
+  "permissions": [
+    "storage",
+    "activeTab",
+    "contextMenus",
+    "tts",
+    "scripting"
+  ],
+  
+  "host_permissions": [
+    "<all_urls>",
+    "https://huggingface.co/*"
+  ],
+  
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content.js"],
+      "css": ["content/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "GlowReadTTS - Click to open",
+    "default_icon": {
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png"
+    }
+  },
+  
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+
+  "offline_enabled": true,
+  
+  "minimum_chrome_version": "120",
+
+  "web_accessible_resources": [
+    {
+      "resources": ["libs/pdfjs/*", "libs/kokoro/*", "libs/onnx/*"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["eula/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
