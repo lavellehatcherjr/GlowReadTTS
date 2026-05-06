@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GlowReadTTS Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="settings-container">
+    <header class="settings-header">
+      <h1>GlowReadTTS Settings</h1>
+      <p>Configure your text-to-speech preferences</p>
+    </header>
+    
+    <main class="settings-main">
+      <section class="settings-section">
+        <h2>Voice Preferences</h2>
+        <div class="setting-group">
+          <label>Default Voice</label>
+          <select id="default-voice">
+            <option value="default">System Default</option>
+          </select>
+        </div>
+        
+        <div class="setting-group">
+          <label>Default Speed</label>
+          <div class="speed-control">
+            <input type="range" id="speed-slider" min="0.25" max="4" step="0.25" value="1" />
+            <span id="speed-value">1.0x</span>
+          </div>
+        </div>
+      </section>
+      
+      <section class="settings-section">
+        <h2>General Settings</h2>
+        <div class="setting-group">
+          <label>
+            <input type="checkbox" id="auto-play" />
+            Auto-play when text is selected
+          </label>
+        </div>
+        
+        <div class="setting-group">
+          <label>
+            <input type="checkbox" id="save-history" />
+            Save reading history
+          </label>
+        </div>
+      </section>
+      
+      <section class="settings-section">
+        <h2>AI Voice Cache</h2>
+        <div class="setting-group">
+          <p id="ai-voices-cache-status" class="cache-status">Checking...</p>
+          <button id="btn-clear-ai-voices-cache" class="btn-clear-cache">Clear AI Voice Cache (~95MB)</button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2>About</h2>
+        <div class="about-info">
+          <p><strong>Version:</strong> 1.0.0</p>
+          <p><strong>Author:</strong> Lavelle Hatcher Jr</p>
+          <p><strong>License:</strong> Apache 2.0</p>
+        </div>
+      </section>
+    </main>
+  </div>
+  
+  <script src="options.js"></script>
+</body>
+</html>
