@@ -26,6 +26,24 @@ async function getAIVoiceManager() {
   return aiVoiceManager;
 }
 
+// Lazily-loaded voice catalog (single source of truth for shipped Kokoro voices).
+let voiceCatalog = null;
+async function getVoiceCatalog() {
+  if (!voiceCatalog) {
+    voiceCatalog = await import(chrome.runtime.getURL('libs/kokoro/voices-catalog.js'));
+  }
+  return voiceCatalog;
+}
+
+// Toggle visibility of both AI voice optgroups (American + British) together.
+function setAIVoicesVisible(visible) {
+  const value = visible ? 'block' : 'none';
+  const american = document.getElementById('ai-voices-american');
+  const british = document.getElementById('ai-voices-british');
+  if (american) american.style.display = value;
+  if (british) british.style.display = value;
+}
+
 // Inline Lucide SVG icons (MIT) — keeps UI consistent across OS emoji renderers.
 // Only static literals defined here; safe to assign via innerHTML.
 const icons = {
@@ -83,9 +101,9 @@ async function initializePopup() {
       return;
     }
 
-    createUI();
+    await createUI();
     setupEventListeners();
-    loadSavedSettings();
+    await loadSavedSettings();
     loadAvailableVoices();
 
     console.log('[GlowReadTTS] Initialization complete');
@@ -160,16 +178,33 @@ function showError(error) {
   container.append(wrapper);
 }
 
-function createUI() {
+async function createUI() {
   console.log('[GlowReadTTS] Creating UI...');
-  
+
   const container = document.getElementById('popup-container');
   if (!container) {
     throw new Error('Container element not found');
   }
-  
+
+  // Build the AI voice optgroups from the catalog. Two groups: American and
+  // British, each ordered by Kokoro grade descending (catalog order is preserved).
+  const { voicesByLanguage } = await getVoiceCatalog();
+  const buildAIOptgroup = (langCode, id, label) => {
+    const options = voicesByLanguage(langCode)
+      .map(v => `<option value="ai:${v.id}">${v.displayName} — ${v.tagline}</option>`)
+      .join('\n              ');
+    return `<optgroup id="${id}" label="${label}" style="display:none;">
+              ${options}
+            </optgroup>`;
+  };
+  const aiVoicesOptgroups =
+    buildAIOptgroup('a', 'ai-voices-american', '🇺🇸 American English') +
+    '\n            ' +
+    buildAIOptgroup('b', 'ai-voices-british', '🇬🇧 British English');
+
   // Build UI from a static template that interpolates only the icons object
-  // (static SVG literals defined above; no user input).
+  // (static SVG literals defined above; no user input) and the catalog-derived
+  // optgroup markup.
   container.innerHTML = `
     <div class="container">
       <!-- Header -->
@@ -266,16 +301,7 @@ function createUI() {
             <optgroup label="Browser Voices" id="browser-voices-group">
               <!-- Browser voices added dynamically -->
             </optgroup>
-            <optgroup label="AI Voices (Offline)" id="ai-voices-group" style="display:none;">
-              <option value="ai:af_heart">Heart — Warm &amp; natural</option>
-              <option value="ai:af_bella">Bella — Clear &amp; friendly</option>
-              <option value="ai:af_sky">Sky — Bright &amp; energetic</option>
-              <option value="ai:af_nicole">Nicole — Smooth &amp; calm</option>
-              <option value="ai:am_adam">Adam — Deep &amp; steady</option>
-              <option value="ai:am_michael">Michael — Professional</option>
-              <option value="ai:bf_emma">Emma — British &amp; warm</option>
-              <option value="ai:bm_george">George — British &amp; clear</option>
-            </optgroup>
+            ${aiVoicesOptgroups}
           </select>
         </div>
 
@@ -698,10 +724,15 @@ function handleSettings() {
 }
 
 // Voice and Speed Handlers
-function handleVoiceChange(e) {
+async function handleVoiceChange(e) {
   state.currentVoice = e.target.value;
-  chrome.storage.sync.set({ voice: state.currentVoice });
-  
+  // Dual-write to flat `voice` and nested `settings.voice` so the popup,
+  // options page, and service-worker context-menu flow all see the same value.
+  await chrome.storage.sync.set({ voice: state.currentVoice });
+  const stored = await chrome.storage.sync.get('settings');
+  const settings = stored.settings || {};
+  await chrome.storage.sync.set({ settings: { ...settings, voice: state.currentVoice } });
+
   if (state.isPlaying) {
     handleStop();
   }
@@ -835,8 +866,7 @@ async function handleDownloadAIVoices() {
     if (btn) btn.style.display = 'none';
     if (progressWrap) progressWrap.classList.add('hidden');
     if (progressText) progressText.classList.add('hidden');
-    const grp = document.getElementById('ai-voices-group');
-    if (grp) grp.style.display = 'block';
+    setAIVoicesVisible(true);
   } catch (error) {
     console.error('[GlowReadTTS] AI voice download error:', error);
     if (statusEl) statusEl.textContent = 'Download failed: ' + (error.message || 'unknown');
@@ -1050,44 +1080,58 @@ async function loadSavedSettings() {
       }
     }
 
-    chrome.storage.sync.get(['voice', 'speed'], (result) => {
-      if (result.voice) {
-        state.currentVoice = result.voice;
-        const voiceSelect = document.getElementById('voice-select');
-        if (voiceSelect) {
-          voiceSelect.value = result.voice;
-        }
+    const { isValidVoiceId } = await getVoiceCatalog();
+    const result = await chrome.storage.sync.get(['voice', 'speed']);
+
+    if (result.voice) {
+      let voice = result.voice;
+
+      // Migration: if the saved voice is an AI voice ID that's no longer in the
+      // shipped catalog (e.g. 'ai:am_adam' or 'ai:af_sky', dropped in v1), move
+      // the user to the locked default 'ai:af_heart' and write to BOTH storage
+      // locations to keep the dual-write inconsistency from drifting.
+      if (voice.startsWith('ai:') && !isValidVoiceId(voice.replace('ai:', ''))) {
+        voice = 'ai:af_heart';
+        await chrome.storage.sync.set({ voice });
+        const stored = await chrome.storage.sync.get('settings');
+        const settings = stored.settings || {};
+        await chrome.storage.sync.set({ settings: { ...settings, voice } });
       }
 
-      if (result.speed) {
-        state.currentSpeed = result.speed;
-        const speedSlider = document.getElementById('speed-slider');
-        const speedValue = document.getElementById('speed-value');
-        if (speedSlider) {
-          speedSlider.value = result.speed;
-        }
-        if (speedValue) {
-          speedValue.textContent = `${result.speed}x`;
-        }
+      state.currentVoice = voice;
+      const voiceSelect = document.getElementById('voice-select');
+      if (voiceSelect) {
+        voiceSelect.value = voice;
       }
-    });
+    }
+
+    if (result.speed) {
+      state.currentSpeed = result.speed;
+      const speedSlider = document.getElementById('speed-slider');
+      const speedValue = document.getElementById('speed-value');
+      if (speedSlider) {
+        speedSlider.value = result.speed;
+      }
+      if (speedValue) {
+        speedValue.textContent = `${result.speed}x`;
+      }
+    }
 
     // If AI voices were previously installed, surface the AI voice options.
-    chrome.storage.local.get(['ai_voices_installed'], async (result) => {
-      if (!result.ai_voices_installed) return;
+    const localResult = await chrome.storage.local.get(['ai_voices_installed']);
+    if (localResult.ai_voices_installed) {
       try {
         const mgr = await getAIVoiceManager();
         const cached = await mgr.isModelCached();
         if (cached) {
-          const grp = document.getElementById('ai-voices-group');
-          if (grp) grp.style.display = 'block';
+          setAIVoicesVisible(true);
           const statusEl = document.getElementById('ai-voices-status');
           if (statusEl) statusEl.textContent = 'Installed';
           const btn = document.getElementById('btn-download-ai-voices');
           if (btn) btn.style.display = 'none';
         }
       } catch (e) { /* best effort */ }
-    });
+    }
   } catch (error) {
     console.error('[GlowReadTTS] Error loading settings:', error);
   }
