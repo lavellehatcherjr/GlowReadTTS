@@ -81,7 +81,7 @@ try {
 }
 
 // Bumping this constant forces all users to re-accept the EULA on next launch.
-const CURRENT_EULA_VERSION = '1.0';
+const CURRENT_EULA_VERSION = '1.1';
 
 async function initializePopup() {
   try {
