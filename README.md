@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon-256.png" alt="GlowReadTTS" width="200" height="200">
+  <img src="assets/icon.svg" alt="GlowReadTTS" width="200" height="200">
 </p>
 
 # GlowReadTTS
@@ -49,9 +49,10 @@ A Chrome extension that reads webpages, PDFs, and text files aloud using your br
 GlowReadTTS includes optional AI-powered voices that run entirely on your device. These voices:
 
 - Sound significantly more natural than browser TTS
-- Run 100% locally after a one-time ~95MB download
+- Download from Hugging Face on first use (~95MB), then run entirely offline
 - Require no API keys, accounts, or ongoing costs
-- Support English (American & British), plus Japanese, Mandarin, Spanish, French, Hindi, Italian, and Brazilian Portuguese (English is strongest; other languages are in beta)
+- Supports American and British English with 15 curated AI voices
+- Available from the popup and from the right-click context menu (previously the right-click flow fell back to system voice)
 
 To enable: open GlowReadTTS → click "Download AI Voices" → wait for download → select an AI voice from the dropdown.
 
