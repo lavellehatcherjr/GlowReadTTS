@@ -372,22 +372,23 @@ function renderDeclineMessage() {
 
   const heading = document.createElement('h2');
   heading.textContent = 'GlowReadTTS is not activated';
+  heading.style.cssText = 'font-family: Georgia, "Times New Roman", serif; color: #1A1815;';
 
   const msg1 = document.createElement('p');
   msg1.textContent = 'You must accept the Terms of Use and Privacy Policy to use GlowReadTTS.';
-  msg1.style.cssText = 'color: #9CA3AF; margin-top: 12px;';
+  msg1.style.cssText = 'color: #6B6864; margin-top: 12px;';
 
   const msg2 = document.createElement('p');
   msg2.textContent = 'The extension will remain inactive until you accept the terms.';
-  msg2.style.cssText = 'color: #9CA3AF; margin-top: 8px;';
+  msg2.style.cssText = 'color: #6B6864; margin-top: 8px;';
 
   const msg3 = document.createElement('p');
   msg3.textContent = 'To review the terms again, click the GlowReadTTS icon in your toolbar.';
-  msg3.style.cssText = 'color: #9CA3AF; margin-top: 8px;';
+  msg3.style.cssText = 'color: #6B6864; margin-top: 8px;';
 
   const msg4 = document.createElement('p');
   msg4.textContent = 'You can uninstall GlowReadTTS from chrome://extensions if you do not wish to use it.';
-  msg4.style.cssText = 'color: #6B7280; margin-top: 24px; font-size: 12px;';
+  msg4.style.cssText = 'color: #8A8680; margin-top: 24px; font-size: 12px;';
 
   wrapper.append(heading, msg1, msg2, msg3, msg4);
   container.append(wrapper);
