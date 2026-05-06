@@ -1,0 +1,64 @@
+/**
+ * GlowReadTTS Content Styles
+ * Highlight-as-you-read — CSS Custom Highlight API + classList fallback
+ *
+ * SECURITY: Pure CSS. No JavaScript-injected inline styles.
+ */
+
+/* ============================================
+   CSS Custom Highlight API (primary path)
+   Styles Range objects directly — zero DOM modification
+   ============================================ */
+::highlight(glowreadtts-reading) {
+  background-color: rgba(91, 79, 228, 0.18);
+  color: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  ::highlight(glowreadtts-reading) {
+    background-color: rgba(91, 79, 228, 0.3);
+  }
+}
+
+@media (forced-colors: active) {
+  ::highlight(glowreadtts-reading) {
+    background-color: Highlight;
+    color: HighlightText;
+  }
+}
+
+/* ============================================
+   classList fallback (browsers without Highlight API)
+   Applied to block elements (p, h1-h6, li, etc.)
+   ============================================ */
+.glowreadtts-sentence-active {
+  background-color: rgba(91, 79, 228, 0.12) !important;
+  box-shadow: -4px 0 0 0 rgba(91, 79, 228, 0.6) !important;
+  border-radius: 3px !important;
+  transition: background-color 0.25s ease, box-shadow 0.25s ease !important;
+  position: relative !important;
+}
+
+/* ============================================
+   Accessibility
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  .glowreadtts-sentence-active {
+    transition: none !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .glowreadtts-sentence-active {
+    background-color: rgba(91, 79, 228, 0.22) !important;
+    box-shadow: -4px 0 0 0 rgba(91, 79, 228, 0.7) !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .glowreadtts-sentence-active {
+    outline: 2px solid Highlight !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
