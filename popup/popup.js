@@ -1,0 +1,1118 @@
+/**
+ * GlowReadTTS Popup - Complete Version with Working Selection
+ */
+
+console.log('[GlowReadTTS] Popup script starting...');
+
+// Global state
+const state = {
+  isPlaying: false,
+  isPaused: false,
+  currentVoice: 'default',
+  currentSpeed: 1.0,
+  currentText: '',
+  selectedButton: null,
+  shouldHighlight: false  // true when reading page/selection text (enables highlight-as-you-read)
+};
+
+// Lazily-loaded AI voice manager (KokoroManager singleton)
+let aiVoiceManager = null;
+async function getAIVoiceManager() {
+  if (!aiVoiceManager) {
+    const mod = await import(chrome.runtime.getURL('libs/kokoro/kokoro-manager.js'));
+    const KokoroManager = mod.default;
+    aiVoiceManager = new KokoroManager();
+  }
+  return aiVoiceManager;
+}
+
+// Inline Lucide SVG icons (MIT) — keeps UI consistent across OS emoji renderers.
+// Only static literals defined here; safe to assign via innerHTML.
+const icons = {
+  volume: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
+  textCursor: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1M7 22h1a4 4 0 0 1 4-4V6a4 4 0 0 1-4-4H7M12 2v20"/></svg>',
+  trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+  clipboard: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>',
+  play: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>',
+  pause: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>',
+  stop: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>',
+  restart: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>',
+  selection: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14M5 21h14M12 8v8M8 12h8"/></svg>',
+  fileText: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/></svg>',
+  upload: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
+  mic: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>',
+  filePdf: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>',
+  settings: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+  sparkles: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4"/></svg>',
+  download: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
+  check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+};
+
+// Wrap everything in try-catch to see errors
+try {
+  // Initialize when DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializePopup);
+  } else {
+    // DOM already loaded
+    initializePopup();
+  }
+} catch (error) {
+  console.error('[GlowReadTTS] Fatal error:', error);
+  renderFallbackMessage(document.body, 'Error loading extension. Please check console.');
+}
+
+// Bumping this constant forces all users to re-accept the EULA on next launch.
+const CURRENT_EULA_VERSION = '1.0';
+
+async function initializePopup() {
+  try {
+    console.log('[GlowReadTTS] Initializing popup...');
+
+    const eulaStatus = await chrome.storage.local.get(['eula_accepted', 'eula_version']);
+    if (!eulaStatus.eula_accepted || eulaStatus.eula_version !== CURRENT_EULA_VERSION) {
+      renderEulaGate();
+      return;
+    }
+
+    // First check if container exists
+    const container = document.getElementById('popup-container');
+    if (!container) {
+      console.error('[GlowReadTTS] Container not found!');
+      renderFallbackMessage(document.body, 'Container not found');
+      return;
+    }
+
+    createUI();
+    setupEventListeners();
+    loadSavedSettings();
+    loadAvailableVoices();
+
+    console.log('[GlowReadTTS] Initialization complete');
+  } catch (error) {
+    console.error('[GlowReadTTS] Initialization error:', error);
+    showError(error);
+  }
+}
+
+// Render the "Terms Not Accepted" screen inside the popup. No extension
+// functionality runs until the user opens the EULA tab and accepts.
+function renderEulaGate() {
+  const container = document.getElementById('popup-container');
+  if (!container) return;
+
+  container.textContent = '';
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'padding: 20px; text-align: center; color: white; font-family: sans-serif;';
+
+  const heading = document.createElement('h3');
+  heading.textContent = 'Terms Not Accepted';
+  heading.style.cssText = 'margin-bottom: 12px; font-size: 16px;';
+
+  const msg = document.createElement('p');
+  msg.textContent = 'You must accept the Terms of Use and Privacy Policy to use GlowReadTTS.';
+  msg.style.cssText = 'color: #9CA3AF; font-size: 13px; margin-bottom: 16px;';
+
+  const btn = document.createElement('button');
+  btn.textContent = 'Review Terms';
+  btn.style.cssText = 'padding: 10px 20px; background: #5B4FE4; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;';
+  btn.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('eula/eula.html') });
+    window.close();
+  });
+
+  wrapper.append(heading, msg, btn);
+  container.append(wrapper);
+}
+
+// Render a single-line fallback message using safe DOM APIs.
+function renderFallbackMessage(target, message) {
+  if (!target) return;
+  target.textContent = '';
+  const div = document.createElement('div');
+  div.style.cssText = 'padding: 20px; color: white;';
+  div.textContent = message;
+  target.append(div);
+}
+
+function showError(error) {
+  const container = document.getElementById('popup-container') || document.body;
+  container.textContent = ''; // Clear safely
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'padding: 20px; color: white; font-family: sans-serif;';
+
+  const heading = document.createElement('h3');
+  heading.style.color = '#EF4444';
+  heading.textContent = 'Error Loading GlowReadTTS';
+
+  const msg = document.createElement('p');
+  msg.style.cssText = 'color: #9CA3AF; font-size: 12px;';
+  msg.textContent = error.message;
+
+  const btn = document.createElement('button');
+  btn.style.cssText = 'margin-top: 10px; padding: 8px 16px; background: #5B4FE4; color: white; border: none; border-radius: 6px; cursor: pointer;';
+  btn.textContent = 'Reload';
+  btn.addEventListener('click', () => location.reload());
+
+  wrapper.append(heading, msg, btn);
+  container.append(wrapper);
+}
+
+function createUI() {
+  console.log('[GlowReadTTS] Creating UI...');
+  
+  const container = document.getElementById('popup-container');
+  if (!container) {
+    throw new Error('Container element not found');
+  }
+  
+  // Build UI from a static template that interpolates only the icons object
+  // (static SVG literals defined above; no user input).
+  container.innerHTML = `
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <h1>${icons.volume} GlowReadTTS</h1>
+        <p>Free AI Voices. Total Privacy.</p>
+      </div>
+
+      <!-- Text Input Area -->
+      <div class="text-input-section">
+        <div class="section-header">
+          <label class="section-label">${icons.textCursor} Paste or Type Text</label>
+          <div class="text-controls">
+            <button id="btn-clear-text" class="text-btn" title="Clear text">${icons.trash}</button>
+            <button id="btn-paste" class="text-btn" title="Paste from clipboard">${icons.clipboard}</button>
+          </div>
+        </div>
+        <textarea
+          id="text-input"
+          class="text-input"
+          placeholder="Paste or type text here to read it aloud..."
+          rows="4"
+        ></textarea>
+        <div class="text-actions">
+          <button id="btn-read-text" class="action-btn-primary">
+            <span>${icons.play} Read Text</span>
+          </button>
+          <span id="char-count" class="char-count">0 characters</span>
+        </div>
+      </div>
+
+      <!-- Playback Controls (shown when playing) -->
+      <div id="playback-section" class="playback-section">
+        <div class="playback-controls">
+          <button id="btn-stop" class="control-btn" title="Stop">${icons.stop}</button>
+          <button id="btn-play-pause" class="control-btn primary" title="Play/Pause">${icons.pause}</button>
+          <button id="btn-restart" class="control-btn" title="Restart">${icons.restart}</button>
+        </div>
+        <div id="status-text" class="status-text">Ready</div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="actions-section">
+        <label class="section-label">Quick Actions</label>
+        <div class="actions-grid">
+          <button id="btn-read-selection" class="action-btn" title="Read selected text">
+            <span class="action-icon">${icons.selection}</span>
+            <span>Selection</span>
+          </button>
+          <button id="btn-read-page" class="action-btn" title="Read entire page">
+            <span class="action-icon">${icons.fileText}</span>
+            <span>Full Page</span>
+          </button>
+          <button id="btn-upload" class="action-btn" title="Upload text file">
+            <span class="action-icon">${icons.upload}</span>
+            <span>Upload</span>
+          </button>
+          <button id="btn-test" class="action-btn" title="Test current voice">
+            <span class="action-icon">${icons.mic}</span>
+            <span>Test Voice</span>
+          </button>
+          <button id="btn-pdf" class="action-btn" title="Read PDF">
+            <span class="action-icon">${icons.filePdf}</span>
+            <span>PDF</span>
+          </button>
+          <button id="btn-settings" class="action-btn" title="Open settings">
+            <span class="action-icon">${icons.settings}</span>
+            <span>Settings</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Voice & Speed Settings -->
+      <div class="settings-section">
+        <!-- AI Voices Section -->
+        <div id="ai-voices-section" class="ai-voices-section">
+          <div class="ai-voices-title">${icons.sparkles} AI Voices (Offline & Free)</div>
+          <div class="ai-voices-description">Download once, use forever. No internet needed after setup.</div>
+          <div id="ai-voices-status" class="ai-voices-status">Not installed</div>
+          <button id="btn-download-ai-voices" class="action-btn-primary" style="width:100%;">
+            <span>${icons.download} Download AI Voices (~95MB)</span>
+          </button>
+          <div id="ai-voices-progress" class="ai-voices-progress hidden">
+            <div id="ai-voices-progress-bar" class="ai-voices-progress-bar"></div>
+          </div>
+          <span id="ai-voices-progress-text" class="ai-voices-progress-text hidden">0%</span>
+        </div>
+
+        <!-- Voice Selection -->
+        <div class="setting-group">
+          <label class="setting-label">Voice</label>
+          <select id="voice-select" class="select-input">
+            <option value="default">System Default</option>
+            <optgroup label="Browser Voices" id="browser-voices-group">
+              <!-- Browser voices added dynamically -->
+            </optgroup>
+            <optgroup label="AI Voices (Offline)" id="ai-voices-group" style="display:none;">
+              <option value="ai:af_heart">Heart — Warm &amp; natural</option>
+              <option value="ai:af_bella">Bella — Clear &amp; friendly</option>
+              <option value="ai:af_sky">Sky — Bright &amp; energetic</option>
+              <option value="ai:af_nicole">Nicole — Smooth &amp; calm</option>
+              <option value="ai:am_adam">Adam — Deep &amp; steady</option>
+              <option value="ai:am_michael">Michael — Professional</option>
+              <option value="ai:bf_emma">Emma — British &amp; warm</option>
+              <option value="ai:bm_george">George — British &amp; clear</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <!-- Speed Control -->
+        <div class="setting-group">
+          <label class="setting-label">Speed</label>
+          <div class="speed-control">
+            <input type="range" id="speed-slider" class="speed-slider"
+                   min="0.25" max="4" step="0.25" value="1">
+            <span id="speed-value" class="speed-value">1.0x</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  console.log('[GlowReadTTS] UI created successfully');
+}
+
+function setupEventListeners() {
+  try {
+    console.log('[GlowReadTTS] Setting up event listeners...');
+    
+    // Text input controls
+    const textInput = document.getElementById('text-input');
+    if (textInput) {
+      textInput.addEventListener('input', handleTextInput);
+    }
+    
+    const readBtn = document.getElementById('btn-read-text');
+    if (readBtn) {
+      readBtn.addEventListener('click', handleReadText);
+    }
+    
+    const clearBtn = document.getElementById('btn-clear-text');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', handleClearText);
+    }
+    
+    const pasteBtn = document.getElementById('btn-paste');
+    if (pasteBtn) {
+      pasteBtn.addEventListener('click', handlePasteText);
+    }
+    
+    // Playback controls
+    const playPauseBtn = document.getElementById('btn-play-pause');
+    if (playPauseBtn) {
+      playPauseBtn.addEventListener('click', handlePlayPause);
+    }
+    
+    const stopBtn = document.getElementById('btn-stop');
+    if (stopBtn) {
+      stopBtn.addEventListener('click', handleStop);
+    }
+    
+    const restartBtn = document.getElementById('btn-restart');
+    if (restartBtn) {
+      restartBtn.addEventListener('click', handleRestart);
+    }
+    
+    // Action buttons
+    const selectionBtn = document.getElementById('btn-read-selection');
+    if (selectionBtn) {
+      selectionBtn.addEventListener('click', handleReadSelection);
+    }
+    
+    const pageBtn = document.getElementById('btn-read-page');
+    if (pageBtn) {
+      pageBtn.addEventListener('click', handleReadPage);
+    }
+    
+    const uploadBtn = document.getElementById('btn-upload');
+    if (uploadBtn) {
+      uploadBtn.addEventListener('click', handleUpload);
+    }
+    
+    const testBtn = document.getElementById('btn-test');
+    if (testBtn) {
+      testBtn.addEventListener('click', handleTestVoice);
+    }
+    
+    const pdfBtn = document.getElementById('btn-pdf');
+    if (pdfBtn) {
+      pdfBtn.addEventListener('click', handlePDF);
+    }
+    
+    const settingsBtn = document.getElementById('btn-settings');
+    if (settingsBtn) {
+      settingsBtn.addEventListener('click', handleSettings);
+    }
+    
+    // Voice and speed
+    const voiceSelect = document.getElementById('voice-select');
+    if (voiceSelect) {
+      voiceSelect.addEventListener('change', handleVoiceChange);
+    }
+    
+    const speedSlider = document.getElementById('speed-slider');
+    if (speedSlider) {
+      speedSlider.addEventListener('input', handleSpeedChange);
+    }
+
+    const downloadBtn = document.getElementById('btn-download-ai-voices');
+    if (downloadBtn) {
+      downloadBtn.addEventListener('click', handleDownloadAIVoices);
+    }
+
+    console.log('[GlowReadTTS] Event listeners setup complete');
+  } catch (error) {
+    console.error('[GlowReadTTS] Error setting up event listeners:', error);
+  }
+}
+
+// Text Input Handlers
+function handleTextInput(e) {
+  const text = e.target.value;
+  state.currentText = text;
+  
+  const charCount = document.getElementById('char-count');
+  if (charCount) {
+    charCount.textContent = `${text.length} characters`;
+    
+    if (text.length > 5000) {
+      charCount.style.color = '#EF4444';
+    } else if (text.length > 2000) {
+      charCount.style.color = '#F59E0B';
+    } else {
+      charCount.style.color = '#9CA3AF';
+    }
+  }
+  
+  const readBtn = document.getElementById('btn-read-text');
+  if (readBtn) {
+    readBtn.disabled = text.trim().length === 0;
+  }
+  
+  sessionStorage.setItem('glowreadtts-text', text);
+}
+
+function handleReadText() {
+  const text = document.getElementById('text-input')?.value?.trim();
+
+  if (!text) {
+    updateStatus('Please enter some text to read');
+    return;
+  }
+
+  state.currentText = text;
+  state.shouldHighlight = false;  // Typed text isn't on the page
+  speakText(text);
+}
+
+function handleClearText() {
+  const textInput = document.getElementById('text-input');
+  if (textInput) {
+    textInput.value = '';
+    state.currentText = '';
+    handleTextInput({ target: textInput });
+  }
+  
+  if (state.isPlaying) {
+    handleStop();
+  }
+}
+
+async function handlePasteText() {
+  try {
+    const text = await navigator.clipboard.readText();
+    const textInput = document.getElementById('text-input');
+    
+    if (textInput && text) {
+      textInput.value = text;
+      state.currentText = text;
+      handleTextInput({ target: textInput });
+      
+      const btn = document.getElementById('btn-paste');
+      if (btn) {
+        btn.innerHTML = icons.check;
+        setTimeout(() => {
+          btn.innerHTML = icons.clipboard;
+        }, 1000);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to paste:', error);
+    updateStatus('Failed to paste from clipboard');
+  }
+}
+
+// Playback Control Handlers
+function handlePlayPause() {
+  const isAI = state.currentVoice.startsWith('ai:') && aiVoiceManager && aiVoiceManager.audio;
+  if (state.isPlaying && !state.isPaused) {
+    if (isAI) {
+      aiVoiceManager.pause();
+    } else {
+      chrome.tts.pause();
+    }
+    state.isPaused = true;
+    updatePlayButton('paused');
+    updateStatus('Paused');
+  } else if (state.isPaused) {
+    if (isAI) {
+      aiVoiceManager.resume();
+    } else {
+      chrome.tts.resume();
+    }
+    state.isPaused = false;
+    updatePlayButton('playing');
+    updateStatus('Resuming...');
+  } else {
+    const text = state.currentText || sessionStorage.getItem('lastText');
+    if (text) {
+      speakText(text);
+    } else {
+      updateStatus('No text to read');
+    }
+  }
+}
+
+function handleStop() {
+  chrome.tts.stop();
+  if (aiVoiceManager) {
+    aiVoiceManager.stop();
+    aiVoiceManager.dispose();
+  }
+
+  if (state.shouldHighlight) {
+    sendHighlightMessage('STOP_HIGHLIGHT');
+    state.shouldHighlight = false;
+  }
+
+  state.isPlaying = false;
+  state.isPaused = false;
+  updatePlayButton('stopped');
+  hidePlaybackControls();
+  updateStatus('Stopped');
+}
+
+function handleRestart() {
+  const text = state.currentText || sessionStorage.getItem('lastText');
+  if (text) {
+    chrome.tts.stop();
+    if (aiVoiceManager) aiVoiceManager.stop();
+
+    if (state.shouldHighlight) {
+      sendHighlightMessage('STOP_HIGHLIGHT');
+    }
+
+    setTimeout(() => {
+      speakText(text);
+    }, 100);
+  }
+}
+
+// Action Button Handlers - COMPLETE IMPLEMENTATIONS
+async function handleReadSelection() {
+  setSelectedButton('btn-read-selection');
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    chrome.tabs.sendMessage(tab.id, { action: 'GET_SELECTED_TEXT' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.log('[GlowReadTTS] Need to inject content script');
+        injectContentScript(tab, 'GET_SELECTED_TEXT');
+      } else if (response && response.text) {
+        console.log('[GlowReadTTS] Got selected text:', response.text.substring(0, 50) + '...');
+        // Put the text in the input area
+        const textInput = document.getElementById('text-input');
+        if (textInput) {
+          textInput.value = response.text;
+          handleTextInput({ target: textInput });
+        }
+        state.shouldHighlight = true;  // Enable highlight-as-you-read for page text
+        speakText(response.text);
+      } else {
+        updateStatus('No text selected');
+      }
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    updateStatus('Error reading selection');
+  }
+}
+
+async function handleReadPage() {
+  setSelectedButton('btn-read-page');
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    chrome.tabs.sendMessage(tab.id, { action: 'GET_PAGE_TEXT' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.log('[GlowReadTTS] Need to inject content script for page');
+        injectContentScript(tab, 'GET_PAGE_TEXT');
+      } else if (response && response.text) {
+        console.log('[GlowReadTTS] Got page text, length:', response.text.length);
+        // Truncate if too long for display
+        const textInput = document.getElementById('text-input');
+        if (textInput) {
+          const truncated = response.text.substring(0, 5000);
+          textInput.value = truncated + (response.text.length > 5000 ? '...\n[Text truncated for display]' : '');
+          handleTextInput({ target: textInput });
+        }
+        state.shouldHighlight = true;  // Enable highlight-as-you-read for page text
+        speakText(response.text);
+      } else {
+        updateStatus('No content found');
+      }
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    updateStatus('Error reading page');
+  }
+}
+
+function handleUpload() {
+  setSelectedButton('btn-upload');
+  state.shouldHighlight = false;  // Uploaded text isn't on the page
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.txt,.md,.json,.csv,.pdf';
+
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.name.endsWith('.pdf')) {
+        readPDFFile(file);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target.result;
+
+        // Put text in input area
+        const textInput = document.getElementById('text-input');
+        if (textInput) {
+          textInput.value = text;
+          handleTextInput({ target: textInput });
+        }
+
+        speakText(text);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  input.click();
+}
+
+function handleTestVoice() {
+  setSelectedButton('btn-test');
+  state.shouldHighlight = false;  // Test text isn't on the page
+  const testText = "Hello! This is a test of the GlowReadTTS text-to-speech system. " +
+                   "You're currently using the browser's text-to-speech voice at " +
+                   state.currentSpeed + "x speed.";
+  speakText(testText);
+}
+
+function handlePDF() {
+  setSelectedButton('btn-pdf');
+  state.shouldHighlight = false;  // PDF text isn't on the page
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.pdf';
+
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      readPDFFile(file);
+    }
+  };
+
+  input.click();
+}
+
+function readPDFFile(file) {
+  updateStatus('Extracting text from PDF...');
+  showPlaybackControls();
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const arrayBuffer = event.target.result;
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64String = btoa(binary);
+
+    chrome.runtime.sendMessage(
+      { action: 'EXTRACT_PDF_TEXT', pdfData: base64String },
+      (response) => {
+        if (response && response.success) {
+          const textInput = document.getElementById('text-input');
+          if (textInput) {
+            textInput.value = response.text;
+            handleTextInput({ target: textInput });
+          }
+          speakText(response.text);
+        } else {
+          const errorMsg = (response && response.error) ||
+            'This PDF contains no readable text (may be a scanned image)';
+          updateStatus(errorMsg);
+          hidePlaybackControls();
+        }
+      }
+    );
+  };
+
+  reader.onerror = () => {
+    updateStatus('Failed to read PDF file');
+    hidePlaybackControls();
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+function handleSettings() {
+  chrome.runtime.openOptionsPage();
+}
+
+// Voice and Speed Handlers
+function handleVoiceChange(e) {
+  state.currentVoice = e.target.value;
+  chrome.storage.sync.set({ voice: state.currentVoice });
+  
+  if (state.isPlaying) {
+    handleStop();
+  }
+}
+
+function handleSpeedChange(e) {
+  state.currentSpeed = parseFloat(e.target.value);
+  document.getElementById('speed-value').textContent = `${state.currentSpeed}x`;
+  chrome.storage.sync.set({ speed: state.currentSpeed });
+}
+
+// Main TTS Function
+function speakText(text) {
+  if (!text) return;
+
+  chrome.tts.stop();
+  if (aiVoiceManager) aiVoiceManager.stop();
+
+  // Stop any existing highlight before starting new speech
+  sendHighlightMessage('STOP_HIGHLIGHT');
+
+  sessionStorage.setItem('lastText', text);
+  state.currentText = text;
+
+  showPlaybackControls();
+  updateStatus('Preparing...');
+
+  if (state.currentVoice.startsWith('ai:')) {
+    useAIVoiceTTS(text);
+  } else {
+    // Browser TTS: word boundary events drive highlight position
+    if (state.shouldHighlight) {
+      sendHighlightMessage('START_HIGHLIGHT', { text: text });
+    }
+    useBrowserTTS(text);
+  }
+}
+
+async function useAIVoiceTTS(text) {
+  updateStatus('Generating speech...');
+  const voice = state.currentVoice.replace('ai:', '');
+
+  try {
+    const mgr = await getAIVoiceManager();
+    const audio = await mgr.generate(text, voice, state.currentSpeed);
+
+    state.isPlaying = true;
+    state.isPaused = false;
+    updatePlayButton('playing');
+    updateStatus('Reading...');
+
+    // Highlight: AI audio doesn't emit word boundaries, so drive highlights via
+    // timeupdate -> HIGHLIGHT_PROGRESS (proportional sentence advance).
+    if (state.shouldHighlight) {
+      const estimatedMs = (Number.isFinite(audio.duration) && audio.duration > 0)
+        ? audio.duration * 1000
+        : (text.length / 15) * 1000;
+      sendHighlightMessage('START_HIGHLIGHT', { text: text, estimatedDurationMs: estimatedMs });
+
+      audio.addEventListener('timeupdate', () => {
+        if (mgr.audio === audio) {
+          sendHighlightMessage('HIGHLIGHT_PROGRESS', {
+            currentTime: audio.currentTime,
+            duration: audio.duration
+          });
+        }
+      });
+    }
+
+    audio.addEventListener('ended', () => {
+      state.isPlaying = false;
+      state.isPaused = false;
+      updatePlayButton('stopped');
+      updateStatus('Finished');
+      if (state.shouldHighlight) {
+        sendHighlightMessage('STOP_HIGHLIGHT');
+        state.shouldHighlight = false;
+      }
+      // Free RAM once playback finishes
+      mgr.dispose();
+      setTimeout(() => hidePlaybackControls(), 2000);
+    });
+
+    audio.addEventListener('error', () => {
+      state.isPlaying = false;
+      updateStatus('AI voice playback error');
+      updatePlayButton('stopped');
+      hidePlaybackControls();
+      if (state.shouldHighlight) {
+        sendHighlightMessage('STOP_HIGHLIGHT');
+        state.shouldHighlight = false;
+      }
+    });
+  } catch (error) {
+    console.error('[GlowReadTTS] AI voice error:', error);
+    updateStatus('AI voice error: ' + (error.message || 'unknown'));
+    state.isPlaying = false;
+    updatePlayButton('stopped');
+    hidePlaybackControls();
+    if (state.shouldHighlight) {
+      sendHighlightMessage('STOP_HIGHLIGHT');
+      state.shouldHighlight = false;
+    }
+  }
+}
+
+async function handleDownloadAIVoices() {
+  const btn = document.getElementById('btn-download-ai-voices');
+  const statusEl = document.getElementById('ai-voices-status');
+  const progressWrap = document.getElementById('ai-voices-progress');
+  const progressBar = document.getElementById('ai-voices-progress-bar');
+  const progressText = document.getElementById('ai-voices-progress-text');
+
+  if (btn) btn.disabled = true;
+  if (statusEl) statusEl.textContent = 'Downloading...';
+  if (progressWrap) progressWrap.classList.remove('hidden');
+  if (progressText) progressText.classList.remove('hidden');
+
+  try {
+    const mgr = await getAIVoiceManager();
+    await mgr.downloadModel((loaded, total) => {
+      if (total > 0 && progressBar && progressText) {
+        const pct = Math.min(100, Math.round((loaded / total) * 100));
+        progressBar.style.width = pct + '%';
+        progressText.textContent = pct + '%';
+      }
+    });
+
+    chrome.storage.local.set({ ai_voices_installed: true });
+    if (statusEl) statusEl.textContent = 'Installed';
+    if (btn) btn.style.display = 'none';
+    if (progressWrap) progressWrap.classList.add('hidden');
+    if (progressText) progressText.classList.add('hidden');
+    const grp = document.getElementById('ai-voices-group');
+    if (grp) grp.style.display = 'block';
+  } catch (error) {
+    console.error('[GlowReadTTS] AI voice download error:', error);
+    if (statusEl) statusEl.textContent = 'Download failed: ' + (error.message || 'unknown');
+    if (btn) btn.disabled = false;
+    if (progressWrap) progressWrap.classList.add('hidden');
+    if (progressText) progressText.classList.add('hidden');
+  }
+}
+
+// Send highlight message to content script (best-effort, non-blocking)
+async function sendHighlightMessage(action, data) {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab && tab.id) {
+      const message = data ? Object.assign({ action: action }, data) : { action: action };
+      chrome.tabs.sendMessage(tab.id, message, () => {
+        // Silently ignore errors — highlight is best-effort
+        // Content script may not be available on restricted pages
+        if (chrome.runtime.lastError) { /* intentionally empty */ }
+      });
+    }
+  } catch (e) {
+    // Highlight is best-effort — never fail TTS due to highlight messaging
+  }
+}
+
+function useBrowserTTS(text) {
+  chrome.tts.stop();
+
+  const options = {
+    rate: state.currentSpeed,
+    pitch: 1.0,
+    volume: 1.0,
+    // Request word/sentence boundary events for highlight tracking
+    desiredEventTypes: ['start', 'end', 'word', 'sentence', 'interrupted', 'cancelled', 'error', 'pause', 'resume'],
+    onEvent: (event) => {
+      if (event.type === 'start') {
+        state.isPlaying = true;
+        state.isPaused = false;
+        updatePlayButton('playing');
+        updateStatus('Reading...');
+      } else if (event.type === 'word' || event.type === 'sentence') {
+        // Update highlight position using charIndex from boundary event
+        if (state.shouldHighlight && typeof event.charIndex === 'number') {
+          sendHighlightMessage('HIGHLIGHT_UPDATE', { charIndex: event.charIndex });
+        }
+      } else if (event.type === 'end' || event.type === 'interrupted' || event.type === 'cancelled') {
+        state.isPlaying = false;
+        state.isPaused = false;
+        updatePlayButton('stopped');
+        updateStatus(event.type === 'end' ? 'Finished' : 'Stopped');
+        // Clean up highlighting
+        if (state.shouldHighlight) {
+          sendHighlightMessage('STOP_HIGHLIGHT');
+          state.shouldHighlight = false;
+        }
+        if (event.type === 'end') {
+          setTimeout(() => hidePlaybackControls(), 2000);
+        } else {
+          hidePlaybackControls();
+        }
+      } else if (event.type === 'error') {
+        state.isPlaying = false;
+        updateStatus('Error: ' + (event.errorMessage || 'Unknown'));
+        updatePlayButton('stopped');
+        if (state.shouldHighlight) {
+          sendHighlightMessage('STOP_HIGHLIGHT');
+          state.shouldHighlight = false;
+        }
+        hidePlaybackControls();
+      }
+    }
+  };
+
+  if (state.currentVoice !== 'default') {
+    options.voiceName = state.currentVoice;
+  }
+
+  chrome.tts.speak(text, options);
+}
+
+// Content Script Injection - COMPLETE IMPLEMENTATION
+async function injectContentScript(tab, action) {
+  if (!tab.url || tab.url.startsWith('chrome://') || 
+      tab.url.startsWith('edge://') || 
+      tab.url.startsWith('chrome-extension://')) {
+    updateStatus('Cannot read this type of page');
+    return;
+  }
+  
+  try {
+    console.log('[GlowReadTTS] Injecting content script...');
+    
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        if (!window.GlowReadTTSInjected) {
+          window.GlowReadTTSInjected = true;
+          
+          chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            if (request.action === 'GET_SELECTED_TEXT') {
+              const selectedText = window.getSelection().toString();
+              console.log('[Content] Sending selected text:', selectedText.substring(0, 50));
+              sendResponse({ text: selectedText });
+            } else if (request.action === 'GET_PAGE_TEXT') {
+              const pageText = document.body ? document.body.innerText : '';
+              console.log('[Content] Sending page text, length:', pageText.length);
+              sendResponse({ text: pageText });
+            }
+            return true;
+          });
+        }
+      }
+    });
+    
+    // Small delay then retry the message
+    setTimeout(() => {
+      console.log('[GlowReadTTS] Sending message after injection:', action);
+      chrome.tabs.sendMessage(tab.id, { action }, (response) => {
+        if (response && response.text) {
+          console.log('[GlowReadTTS] Got text after injection:', response.text.substring(0, 50) + '...');
+          // Put text in input area
+          const textInput = document.getElementById('text-input');
+          if (textInput) {
+            if (action === 'GET_PAGE_TEXT' && response.text.length > 5000) {
+              const truncated = response.text.substring(0, 5000);
+              textInput.value = truncated + '...\n[Text truncated for display]';
+            } else {
+              textInput.value = response.text;
+            }
+            handleTextInput({ target: textInput });
+          }
+          speakText(response.text);
+        } else {
+          updateStatus('No text found');
+        }
+      });
+    }, 100);
+    
+  } catch (error) {
+    console.error('[Inject] Failed:', error);
+    updateStatus('Cannot read this page');
+  }
+}
+
+// UI Helper Functions
+function showPlaybackControls() {
+  const section = document.getElementById('playback-section');
+  if (section) {
+    section.classList.add('active');
+  }
+}
+
+function hidePlaybackControls() {
+  const section = document.getElementById('playback-section');
+  if (section) {
+    section.classList.remove('active');
+  }
+}
+
+function updatePlayButton(status) {
+  const btn = document.getElementById('btn-play-pause');
+  if (!btn) return;
+
+  switch (status) {
+    case 'playing':
+      btn.innerHTML = icons.pause;
+      btn.classList.add('playing');
+      break;
+    case 'paused':
+      btn.innerHTML = icons.play;
+      btn.classList.remove('playing');
+      break;
+    case 'stopped':
+      btn.innerHTML = icons.play;
+      btn.classList.remove('playing');
+      break;
+  }
+}
+
+function updateStatus(text) {
+  const statusEl = document.getElementById('status-text');
+  if (statusEl) {
+    statusEl.textContent = text;
+  }
+}
+
+function setSelectedButton(buttonId) {
+  document.querySelectorAll('.action-btn').forEach(btn => {
+    btn.classList.remove('selected');
+  });
+  
+  const btn = document.getElementById(buttonId);
+  if (btn) {
+    btn.classList.add('selected');
+    setTimeout(() => {
+      btn.classList.remove('selected');
+    }, 500);
+  }
+}
+
+// Load saved settings
+async function loadSavedSettings() {
+  try {
+    const savedText = sessionStorage.getItem('glowreadtts-text');
+    if (savedText) {
+      const textInput = document.getElementById('text-input');
+      if (textInput) {
+        textInput.value = savedText;
+        handleTextInput({ target: textInput });
+      }
+    }
+
+    chrome.storage.sync.get(['voice', 'speed'], (result) => {
+      if (result.voice) {
+        state.currentVoice = result.voice;
+        const voiceSelect = document.getElementById('voice-select');
+        if (voiceSelect) {
+          voiceSelect.value = result.voice;
+        }
+      }
+
+      if (result.speed) {
+        state.currentSpeed = result.speed;
+        const speedSlider = document.getElementById('speed-slider');
+        const speedValue = document.getElementById('speed-value');
+        if (speedSlider) {
+          speedSlider.value = result.speed;
+        }
+        if (speedValue) {
+          speedValue.textContent = `${result.speed}x`;
+        }
+      }
+    });
+
+    // If AI voices were previously installed, surface the AI voice options.
+    chrome.storage.local.get(['ai_voices_installed'], async (result) => {
+      if (!result.ai_voices_installed) return;
+      try {
+        const mgr = await getAIVoiceManager();
+        const cached = await mgr.isModelCached();
+        if (cached) {
+          const grp = document.getElementById('ai-voices-group');
+          if (grp) grp.style.display = 'block';
+          const statusEl = document.getElementById('ai-voices-status');
+          if (statusEl) statusEl.textContent = 'Installed';
+          const btn = document.getElementById('btn-download-ai-voices');
+          if (btn) btn.style.display = 'none';
+        }
+      } catch (e) { /* best effort */ }
+    });
+  } catch (error) {
+    console.error('[GlowReadTTS] Error loading settings:', error);
+  }
+}
+
+// Load available voices
+async function loadAvailableVoices() {
+  try {
+    chrome.tts.getVoices((voices) => {
+      const browserGroup = document.getElementById('browser-voices-group');
+      
+      if (browserGroup && voices) {
+        voices.forEach(voice => {
+          if (voice.voiceName) {
+            const option = document.createElement('option');
+            option.value = voice.voiceName;
+            option.textContent = `${voice.voiceName} (${voice.lang || 'en'})`;
+            browserGroup.appendChild(option);
+          }
+        });
+      }
+    });
+  } catch (error) {
+    console.error('[GlowReadTTS] Error loading voices:', error);
+  }
+}
+
+console.log('[GlowReadTTS] Popup script loaded successfully');
