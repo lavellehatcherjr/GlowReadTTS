@@ -1,0 +1,224 @@
+/**
+ * GlowReadTTS — EULA & Privacy Policy acceptance screen styles.
+ */
+
+:root {
+  --bg: #1a1a2e;
+  --card-bg: #1e2236;
+  --text: #E5E7EB;
+  --muted: #9CA3AF;
+  --soft: #6B7280;
+  --accent: #5B4FE4;
+  --accent-hover: #4A3FD3;
+  --success: #10B981;
+  --border: rgba(255, 255, 255, 0.10);
+  --decline: #374151;
+  --decline-hover: #4B5563;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+  min-height: 100vh;
+}
+
+.eula-container {
+  width: 100%;
+  max-width: 880px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.eula-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.eula-header p {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.eula-content {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  max-height: 55vh;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.6;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+
+.eula-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.eula-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.eula-content::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 4px;
+}
+
+.eula-content h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 18px 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  color: #fff;
+}
+
+.eula-content h2:first-child {
+  margin-top: 0;
+}
+
+.eula-content #eula-text,
+.eula-content #privacy-text {
+  white-space: pre-wrap;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+}
+
+.eula-scroll-notice {
+  background: rgba(91, 79, 228, 0.12);
+  border: 1px solid rgba(91, 79, 228, 0.35);
+  color: #C7C2FF;
+  text-align: center;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  transition: opacity 0.3s ease, max-height 0.3s ease, margin 0.3s ease, padding 0.3s ease;
+  opacity: 1;
+  max-height: 80px;
+  overflow: hidden;
+}
+
+.eula-scroll-notice.hidden {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin: 0;
+  border-color: transparent;
+}
+
+.eula-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.eula-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+  padding-top: 16px;
+}
+
+.eula-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--success);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.eula-checkbox-label input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.eula-checkbox-label input[type="checkbox"]:disabled + span {
+  color: var(--soft);
+}
+
+.eula-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.eula-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.06s ease, opacity 0.18s ease;
+  min-height: 44px;
+  min-width: 140px;
+}
+
+.eula-btn:active {
+  transform: translateY(1px);
+}
+
+.eula-btn-decline {
+  background: var(--decline);
+  color: var(--text);
+}
+
+.eula-btn-decline:hover {
+  background: var(--decline-hover);
+}
+
+.eula-btn-accept {
+  background: var(--accent);
+  color: #fff;
+}
+
+.eula-btn-accept:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.eula-btn-accept:disabled {
+  background: rgba(91, 79, 228, 0.35);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  body { padding: 12px; }
+  .eula-container { padding: 20px; gap: 16px; }
+  .eula-header h1 { font-size: 22px; }
+  .eula-content { max-height: 50vh; padding: 14px; font-size: 13.5px; }
+  .eula-buttons { flex-direction: column-reverse; }
+  .eula-btn { width: 100%; min-width: 0; }
+}
