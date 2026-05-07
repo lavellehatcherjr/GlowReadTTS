@@ -44,7 +44,7 @@ function setAIVoicesVisible(visible) {
   if (british) british.style.display = value;
 }
 
-// Inline Lucide SVG icons (MIT) — keeps UI consistent across OS emoji renderers.
+// Inline Lucide SVG icons (MIT) - keeps UI consistent across OS emoji renderers.
 // Only static literals defined here; safe to assign via innerHTML.
 const icons = {
   volume: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
@@ -190,7 +190,7 @@ async function createUI() {
   const { voicesByLanguage } = await getVoiceCatalog();
   const buildAIOptgroup = (langCode, id, label) => {
     const options = voicesByLanguage(langCode)
-      .map(v => `<option value="ai:${v.id}">${v.displayName} — ${v.tagline}</option>`)
+      .map(v => `<option value="ai:${v.id}">${v.displayName} - ${v.tagline}</option>`)
       .join('\n              ');
     return `<optgroup id="${id}" label="${label}" style="display:none;">
               ${options}
@@ -525,7 +525,7 @@ function handleStop() {
   // Also stop any right-click AI read happening in the offscreen document.
   // The offscreen has its own KokoroManager and audio element. Its handleStop
   // sends OFFSCREEN_ENDED back to the SW, which relays STOP_HIGHLIGHT to the
-  // page — closing the cleanup loop without relying on the watchdog.
+  // page - closing the cleanup loop without relying on the watchdog.
   try {
     chrome.runtime.sendMessage({
       target: 'offscreen',
@@ -911,13 +911,13 @@ async function sendHighlightMessage(action, data) {
     if (tab && tab.id) {
       const message = data ? Object.assign({ action: action }, data) : { action: action };
       chrome.tabs.sendMessage(tab.id, message, () => {
-        // Silently ignore errors — highlight is best-effort
+        // Silently ignore errors - highlight is best-effort
         // Content script may not be available on restricted pages
         if (chrome.runtime.lastError) { /* intentionally empty */ }
       });
     }
   } catch (e) {
-    // Highlight is best-effort — never fail TTS due to highlight messaging
+    // Highlight is best-effort - never fail TTS due to highlight messaging
   }
 }
 
@@ -1120,11 +1120,11 @@ async function loadSavedSettings() {
       // locations to keep the dual-write inconsistency from drifting.
       if (voice.startsWith('ai:') && !isValidVoiceId(voice.replace('ai:', ''))) {
         // Notify user via the visible AI voices status row (writing to the
-        // playback status would be invisible — that section is hidden until a
+        // playback status would be invisible - that section is hidden until a
         // read starts).
         const aiStatusEl = document.getElementById('ai-voices-status');
         if (aiStatusEl) {
-          aiStatusEl.textContent = 'Your previous AI voice is no longer available — defaulted to Heart';
+          aiStatusEl.textContent = 'Your previous AI voice is no longer available - defaulted to Heart';
           aiStatusEl.style.color = 'var(--warning, #F59E0B)';
         }
 
