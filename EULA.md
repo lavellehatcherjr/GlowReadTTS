@@ -4,7 +4,7 @@
 
 **Last Updated:** May 7, 2026
 
-**IMPORTANT — READ CAREFULLY BEFORE USING THIS SOFTWARE.**
+**IMPORTANT - READ CAREFULLY BEFORE USING THIS SOFTWARE.**
 
 This End User License Agreement ("Agreement") is a binding legal agreement between you ("User," "you," or "your") and Lavelle Hatcher Jr ("Developer," "we," "us," or "our") governing your use of the GlowReadTTS browser extension ("Software"), including any updates, patches, or modifications thereto.
 
