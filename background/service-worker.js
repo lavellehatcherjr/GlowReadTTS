@@ -99,12 +99,26 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     if (result.eula_version !== CURRENT_EULA_VERSION) {
       openEulaTab();
     }
+
+    // Clean up dead setting keys from previous versions.
+    // Wrapped in try/catch to avoid breaking onInstalled if sync is throttled or unavailable.
+    try {
+      const stored = await chrome.storage.sync.get('settings');
+      if (stored.settings) {
+        const cleaned = { ...stored.settings };
+        let mutated = false;
+        if ('autoPlay' in cleaned) { delete cleaned.autoPlay; mutated = true; }
+        if ('saveHistory' in cleaned) { delete cleaned.saveHistory; mutated = true; }
+        if (mutated) await chrome.storage.sync.set({ settings: cleaned });
+      }
+    } catch (e) {
+      // chrome.storage.sync may be unavailable; cleanup will retry on next update
+    }
   }
 
   const defaults = {
     voice: 'default',
-    speed: 1.0,
-    autoPlay: true
+    speed: 1.0
   };
 
   const existing = await chrome.storage.sync.get('settings');
@@ -170,19 +184,30 @@ async function speakFromServiceWorker(text, tabId) {
 
         await ensureOffscreenDocument();
 
+        // Tell the page to start highlighting before we kick off generation.
+        // This way the highlight is ready when audio starts playing.
+        state.highlightTabId = tabId;
+        sendToTab(tabId, {
+          action: 'START_HIGHLIGHT',
+          text: text
+        });
+
         const response = await chrome.runtime.sendMessage({
           target: 'offscreen',
           action: 'OFFSCREEN_GENERATE_AND_PLAY',
           text: text,
           voice: voice.replace('ai:', ''),
-          speed: speed
+          speed: speed,
+          tabId: tabId
         });
 
         if (!response || !response.success) {
           throw new Error((response && response.error) || 'Offscreen generation returned no response');
         }
 
-        // Successful AI playback. No system TTS, no on-page highlight.
+        // Successful AI playback. Highlight is driven by OFFSCREEN_PROGRESS
+        // messages relayed from the offscreen document. Cleanup happens via
+        // OFFSCREEN_ENDED when audio finishes or is stopped.
         return;
       } catch (err) {
         console.error('[GlowReadTTS] AI voice playback failed:', err);
@@ -236,6 +261,13 @@ async function speakFromServiceWorker(text, tabId) {
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // Skip messages explicitly targeted at the offscreen document; they're
+  // handled by offscreen.js. Without this filter, the SW would respond
+  // "Unknown action" and pollute the console with each offscreen message.
+  if (request && request.target && request.target !== 'service-worker') {
+    return false;
+  }
+
   console.log('[Service Worker] Message received:', request.action);
 
   (async () => {
@@ -252,16 +284,47 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               const pageText = content.items.map(item => item.str).join(' ');
               fullText += pageText + '\n\n';
             }
+            const originalLength = fullText.trim().length;
             fullText = fullText.trim().substring(0, 50000);
             if (!fullText) {
               sendResponse({ success: false, error: 'This PDF contains no readable text (may be a scanned image)' });
             } else {
-              sendResponse({ success: true, text: fullText });
+              const wasTruncated = originalLength > 50000;
+              sendResponse({
+                success: true,
+                text: fullText,
+                truncated: wasTruncated,
+                originalLength: originalLength
+              });
             }
           } catch (error) {
             console.error('[GlowReadTTS] PDF extraction error:', error);
             sendResponse({ success: false, error: 'Failed to extract text from PDF: ' + error.message });
           }
+          break;
+
+        case 'OFFSCREEN_PROGRESS':
+          // Relay AI audio progress from offscreen document to the active tab
+          // for highlight-as-you-read advancement.
+          if (request.tabId) {
+            sendToTab(request.tabId, {
+              action: 'HIGHLIGHT_PROGRESS',
+              currentTime: request.currentTime,
+              duration: request.duration
+            });
+          }
+          sendResponse({ success: true });
+          break;
+
+        case 'OFFSCREEN_ENDED':
+          // AI audio finished, errored, or was stopped. Clean up highlight on the page.
+          if (request.tabId) {
+            sendToTab(request.tabId, { action: 'STOP_HIGHLIGHT' });
+          }
+          if (state.highlightTabId === request.tabId) {
+            state.highlightTabId = null;
+          }
+          sendResponse({ success: true });
           break;
 
         default:
