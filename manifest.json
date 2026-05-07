@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "GlowReadTTS — Text to Speech Voice Reader",
+  "name": "GlowReadTTS - Text to Speech Voice Reader",
   "short_name": "GlowReadTTS",
   "version": "1.0.0",
   "description": "Free text-to-speech with offline AI voices, highlight-as-you-read, PDF support, and total privacy.",
@@ -15,11 +15,13 @@
   },
   
   "permissions": [
-    "storage",
     "activeTab",
     "contextMenus",
-    "tts",
-    "scripting"
+    "notifications",
+    "offscreen",
+    "scripting",
+    "storage",
+    "tts"
   ],
   
   "host_permissions": [
