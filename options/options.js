@@ -15,8 +15,6 @@ async function initOptions() {
 
   document.getElementById('speed-slider')?.addEventListener('input', updateSpeed);
   document.getElementById('default-voice')?.addEventListener('change', saveSettings);
-  document.getElementById('auto-play')?.addEventListener('change', saveSettings);
-  document.getElementById('save-history')?.addEventListener('change', saveSettings);
   document.getElementById('btn-clear-ai-voices-cache')?.addEventListener('click', clearAIVoiceCache);
 }
 
@@ -32,14 +30,6 @@ async function loadSettings() {
     if (s.speed) {
       document.getElementById('speed-slider').value = s.speed;
       document.getElementById('speed-value').textContent = `${s.speed}x`;
-    }
-
-    if (s.autoPlay !== undefined) {
-      document.getElementById('auto-play').checked = s.autoPlay;
-    }
-
-    if (s.saveHistory !== undefined) {
-      document.getElementById('save-history').checked = s.saveHistory;
     }
   }
 }
@@ -85,6 +75,13 @@ async function refreshCacheStatus() {
 async function clearAIVoiceCache() {
   const statusEl = document.getElementById('ai-voices-cache-status');
   const btn = document.getElementById('btn-clear-ai-voices-cache');
+
+  // Confirm before deleting ~95MB of cached files.
+  const confirmed = window.confirm(
+    'Clear the AI voice cache? This will free approximately 95MB but you will need to download the AI voices again to use them.'
+  );
+  if (!confirmed) return;
+
   if (btn) btn.disabled = true;
   try {
     for (const key of AI_CACHE_KEYS) {
@@ -108,9 +105,7 @@ function updateSpeed(e) {
 async function saveSettings() {
   const formValues = {
     voice: document.getElementById('default-voice').value,
-    speed: parseFloat(document.getElementById('speed-slider').value),
-    autoPlay: document.getElementById('auto-play').checked,
-    saveHistory: document.getElementById('save-history').checked
+    speed: parseFloat(document.getElementById('speed-slider').value)
   };
 
   // Read existing settings first so a concurrent popup write to settings.voice
