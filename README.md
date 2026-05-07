@@ -1,10 +1,12 @@
 <p align="center">
-  <img src="assets/icon-256.png" alt="GlowReadTTS" width="200" height="200">
+  <img src="assets/icon.svg" alt="GlowReadTTS" width="200" height="200">
 </p>
 
 # GlowReadTTS
 
 A Chrome extension that reads webpages, PDFs, and text files aloud using your browser's built-in TTS voices or downloadable on-device AI voices. Fully offline-capable, with no accounts, API keys, or data collection.
+
+**New to GlowReadTTS?** Read the [Getting Started guide](GETTING_STARTED.md) for installation, setup, and feature walkthroughs.
 
 ### On-Device AI Voices. Highlight as You Read.
 
@@ -70,6 +72,8 @@ To enable: open GlowReadTTS → click "Download AI Voices" → wait for download
 
 For the full list of third-party libraries and their licenses, see [NOTICE](NOTICE).
 
-## License
+## Legal
 
-Apache License 2.0 - see [LICENSE](LICENSE) and [NOTICE](NOTICE) files.
+- **License:** Apache License 2.0 - see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+- **Privacy Policy:** [PRIVACY.md](PRIVACY.md)
+- **Terms of Use (EULA):** [EULA.md](EULA.md)
