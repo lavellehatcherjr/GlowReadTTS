@@ -59,7 +59,6 @@ const icons = {
   fileText: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/></svg>',
   upload: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
   mic: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>',
-  filePdf: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>',
   settings: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
   sparkles: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4"/></svg>',
   download: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
@@ -258,17 +257,13 @@ async function createUI() {
             <span class="action-icon">${icons.fileText}</span>
             <span>Full Page</span>
           </button>
-          <button id="btn-upload" class="action-btn" title="Upload text file">
+          <button id="btn-upload" class="action-btn" title="Upload text or PDF file">
             <span class="action-icon">${icons.upload}</span>
             <span>Upload</span>
           </button>
           <button id="btn-test" class="action-btn" title="Test current voice">
             <span class="action-icon">${icons.mic}</span>
             <span>Test Voice</span>
-          </button>
-          <button id="btn-pdf" class="action-btn" title="Read PDF">
-            <span class="action-icon">${icons.filePdf}</span>
-            <span>PDF</span>
           </button>
           <button id="btn-settings" class="action-btn" title="Open settings">
             <span class="action-icon">${icons.settings}</span>
@@ -383,11 +378,6 @@ function setupEventListeners() {
       testBtn.addEventListener('click', handleTestVoice);
     }
     
-    const pdfBtn = document.getElementById('btn-pdf');
-    if (pdfBtn) {
-      pdfBtn.addEventListener('click', handlePDF);
-    }
-    
     const settingsBtn = document.getElementById('btn-settings');
     if (settingsBtn) {
       settingsBtn.addEventListener('click', handleSettings);
@@ -427,8 +417,12 @@ function handleTextInput(e) {
     charCount.classList.remove('warning', 'error');
     if (text.length > 5000) {
       charCount.classList.add('error');
+      charCount.title = 'Long texts (over 5,000 characters) may be cut off by the speech engine. Consider splitting into smaller chunks.';
     } else if (text.length > 2000) {
       charCount.classList.add('warning');
+      charCount.title = 'Approaching length limits. Speech may take a moment to start.';
+    } else {
+      charCount.title = 'Within recommended length range.';
     }
   }
 
@@ -528,6 +522,21 @@ function handleStop() {
     aiVoiceManager.dispose();
   }
 
+  // Also stop any right-click AI read happening in the offscreen document.
+  // The offscreen has its own KokoroManager and audio element. Its handleStop
+  // sends OFFSCREEN_ENDED back to the SW, which relays STOP_HIGHLIGHT to the
+  // page — closing the cleanup loop without relying on the watchdog.
+  try {
+    chrome.runtime.sendMessage({
+      target: 'offscreen',
+      action: 'OFFSCREEN_STOP'
+    }, () => {
+      if (chrome.runtime.lastError) {
+        // Offscreen document may not exist yet; safe to ignore.
+      }
+    });
+  } catch (e) { /* no offscreen doc */ }
+
   if (state.shouldHighlight) {
     sendHighlightMessage('STOP_HIGHLIGHT');
     state.shouldHighlight = false;
@@ -600,8 +609,12 @@ async function handleReadPage() {
         // Truncate if too long for display
         const textInput = document.getElementById('text-input');
         if (textInput) {
-          const truncated = response.text.substring(0, 5000);
-          textInput.value = truncated + (response.text.length > 5000 ? '...\n[Text truncated for display]' : '');
+          if (response.text.length > 5000) {
+            const truncated = response.text.substring(0, 5000);
+            textInput.value = truncated + '...\n[Display truncated. Full page text will still be read aloud.]';
+          } else {
+            textInput.value = response.text;
+          }
           handleTextInput({ target: textInput });
         }
         state.shouldHighlight = true;  // Enable highlight-as-you-read for page text
@@ -653,27 +666,15 @@ function handleUpload() {
 function handleTestVoice() {
   setSelectedButton('btn-test');
   state.shouldHighlight = false;  // Test text isn't on the page
+
+  // Branch the voice description on whether the current voice is AI or browser-based.
+  const isAI = state.currentVoice && state.currentVoice.startsWith('ai:');
+  const voiceLabel = isAI ? 'an AI voice' : 'a browser text-to-speech voice';
+
   const testText = "Hello! This is a test of the GlowReadTTS text-to-speech system. " +
-                   "You're currently using the browser's text-to-speech voice at " +
+                   "You're currently listening to " + voiceLabel + " at " +
                    state.currentSpeed + "x speed.";
   speakText(testText);
-}
-
-function handlePDF() {
-  setSelectedButton('btn-pdf');
-  state.shouldHighlight = false;  // PDF text isn't on the page
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.pdf';
-
-  input.onchange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      readPDFFile(file);
-    }
-  };
-
-  input.click();
 }
 
 function readPDFFile(file) {
@@ -696,10 +697,16 @@ function readPDFFile(file) {
         if (response && response.success) {
           const textInput = document.getElementById('text-input');
           if (textInput) {
-            textInput.value = response.text;
+            let displayText = response.text;
+            if (response.truncated) {
+              displayText = response.text +
+                '\n\n[PDF was truncated to 50,000 characters. Original was ' +
+                response.originalLength.toLocaleString() + ' characters.]';
+            }
+            textInput.value = displayText;
             handleTextInput({ target: textInput });
           }
-          speakText(response.text);
+          speakText(response.text);  // Read only the truncated portion
         } else {
           const errorMsg = (response && response.error) ||
             'This PDF contains no readable text (may be a scanned image)';
@@ -870,11 +877,24 @@ async function handleDownloadAIVoices() {
     });
 
     chrome.storage.local.set({ ai_voices_installed: true });
-    if (statusEl) statusEl.textContent = 'Installed';
+    if (statusEl) {
+      statusEl.textContent = 'Installed. Select an AI voice in the Voice dropdown below.';
+      statusEl.style.color = 'var(--success, #10B981)';
+    }
     if (btn) btn.style.display = 'none';
     if (progressWrap) progressWrap.classList.add('hidden');
     if (progressText) progressText.classList.add('hidden');
     setAIVoicesVisible(true);
+
+    // Briefly highlight the Voice dropdown to draw attention to where AI voices live.
+    const voiceSelectEl = document.getElementById('voice-select');
+    if (voiceSelectEl) {
+      voiceSelectEl.style.transition = 'box-shadow 1.5s ease';
+      voiceSelectEl.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.4)';
+      setTimeout(() => {
+        voiceSelectEl.style.boxShadow = '';
+      }, 2500);
+    }
   } catch (error) {
     console.error('[GlowReadTTS] AI voice download error:', error);
     if (statusEl) statusEl.textContent = 'Download failed: ' + (error.message || 'unknown');
@@ -1001,7 +1021,7 @@ async function injectContentScript(tab, action) {
           if (textInput) {
             if (action === 'GET_PAGE_TEXT' && response.text.length > 5000) {
               const truncated = response.text.substring(0, 5000);
-              textInput.value = truncated + '...\n[Text truncated for display]';
+              textInput.value = truncated + '...\n[Display truncated. Full page text will still be read aloud.]';
             } else {
               textInput.value = response.text;
             }
@@ -1099,6 +1119,15 @@ async function loadSavedSettings() {
       // the user to the locked default 'ai:af_heart' and write to BOTH storage
       // locations to keep the dual-write inconsistency from drifting.
       if (voice.startsWith('ai:') && !isValidVoiceId(voice.replace('ai:', ''))) {
+        // Notify user via the visible AI voices status row (writing to the
+        // playback status would be invisible — that section is hidden until a
+        // read starts).
+        const aiStatusEl = document.getElementById('ai-voices-status');
+        if (aiStatusEl) {
+          aiStatusEl.textContent = 'Your previous AI voice is no longer available — defaulted to Heart';
+          aiStatusEl.style.color = 'var(--warning, #F59E0B)';
+        }
+
         voice = 'ai:af_heart';
         await chrome.storage.sync.set({ voice });
         const stored = await chrome.storage.sync.get('settings');
