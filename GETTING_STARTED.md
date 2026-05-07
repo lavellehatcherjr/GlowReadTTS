@@ -32,7 +32,7 @@ There are five ways to feed text into the extension. Pick whichever fits your si
 
 **Popup -> Selection button.** Same idea, but initiated from the popup. Useful when the right-click menu is awkward or being intercepted by another extension. Highlight text, click the toolbar icon, click **Selection**. The text appears in the popup textarea so you can confirm what's about to be read.
 
-**Popup -> Full Page button.** Reads the entire visible text of the active tab, including nav, sidebar, and footer text - there's no Reader Mode integration in v1. The textarea shows the first 5,000 characters; the full text is what gets spoken. For cleaner reads, select just the article body and use Selection or right-click.
+**Popup -> Full Page button.** Reads the main article content of the active tab. For news articles, blog posts, and other article-shaped pages, automatically extracts just the article body (skipping nav, sidebar, footer, ads, and cookie banners) using Mozilla's Readability library. For non-article pages (forums, web apps, search results), falls back to reading the full visible text. The textarea shows the first 5,000 characters of whichever was extracted; the full text is what gets spoken. The status briefly indicates "Reading article (Reader Mode)" or "Reading page" so you know which mode was used.
 
 **Popup -> textarea + Read Text.** Type or paste any text into the textarea and click **Read Text**. The character count is gray under 2,000 characters, yellow at 2,000-5,000, red over 5,000 (some speech engines may cut off very long inputs). Hover the count for the explanation. The clipboard icon next to the textarea pastes from your clipboard; the trash icon clears it.
 
