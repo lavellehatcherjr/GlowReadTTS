@@ -33,11 +33,11 @@ Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS 
 
 **3.1** The Software stores the following data locally using Chrome's built-in storage APIs. All data listed below is stored exclusively on your device and is automatically and permanently deleted when the Software is uninstalled:
 
-- **(a)** Voice and speed preferences (`chrome.storage.sync`) — synced across your Chrome devices if Chrome sync is enabled (this is a Chrome feature, not controlled by the Software).
-- **(b)** AI voice installation state (`chrome.storage.local`) — a boolean flag indicating whether the AI voice model has been downloaded.
-- **(c)** EULA/Privacy Policy acceptance state (`chrome.storage.local`) — records that you accepted these terms, the version accepted, and the date of acceptance.
-- **(d)** Cached AI voice model files (Cache API) — approximately 95MB of neural network model weights and voice data. These are inert data files that cannot execute code.
-- **(e)** Session text for playback continuity (`sessionStorage`) — temporarily stores the most recently read text. This is automatically cleared when the popup is closed.
+- **(a)** Voice and speed preferences (`chrome.storage.sync`) - synced across your Chrome devices if Chrome sync is enabled (this is a Chrome feature, not controlled by the Software).
+- **(b)** AI voice installation state (`chrome.storage.local`) - a boolean flag indicating whether the AI voice model has been downloaded.
+- **(c)** EULA/Privacy Policy acceptance state (`chrome.storage.local`) - records that you accepted these terms, the version accepted, and the date of acceptance.
+- **(d)** Cached AI voice model files (Cache API) - approximately 95MB of neural network model weights and voice data. These are inert data files that cannot execute code.
+- **(e)** Session text for playback continuity (`sessionStorage`) - temporarily stores the most recently read text. This is automatically cleared when the popup is closed.
 
 **3.2** No data stored by the Software is accessible to other extensions, websites, or applications. Chrome's storage APIs are sandboxed to the extension's unique origin.
 
@@ -57,13 +57,13 @@ Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS 
 
 **5.1** The Software requests the following Chrome browser permissions. Each permission is used solely for the purpose described below:
 
-- **(a)** "storage" — to save your voice and speed preferences locally on your device.
-- **(b)** "activeTab" — to read text content from the currently active browser tab when you explicitly request it by clicking "Selection" or "Full Page" in the Software's interface.
-- **(c)** "contextMenus" — to add the "Read with GlowReadTTS" option to the right-click context menu.
-- **(d)** "tts" — to access the browser's built-in text-to-speech engine for voice synthesis.
-- **(e)** "scripting" — to inject the content script that enables text extraction and highlight-as-you-read functionality on webpages.
-- **(f)** "<all_urls>" host permission — required for the content script to operate on any webpage the user visits, enabling text selection reading and highlight-as-you-read on all websites. This permission does NOT grant the Software automatic access to page content; content is only accessed when the user explicitly triggers a reading action.
-- **(g)** "https://huggingface.co/*" host permission — required solely for downloading the AI voice model files from Hugging Face's servers.
+- **(a)** "storage" - to save your voice and speed preferences locally on your device.
+- **(b)** "activeTab" - to read text content from the currently active browser tab when you explicitly request it by clicking "Selection" or "Full Page" in the Software's interface.
+- **(c)** "contextMenus" - to add the "Read with GlowReadTTS" option to the right-click context menu.
+- **(d)** "tts" - to access the browser's built-in text-to-speech engine for voice synthesis.
+- **(e)** "scripting" - to inject the content script that enables text extraction and highlight-as-you-read functionality on webpages.
+- **(f)** "<all_urls>" host permission - required for the content script to operate on any webpage the user visits, enabling text selection reading and highlight-as-you-read on all websites. This permission does NOT grant the Software automatic access to page content; content is only accessed when the user explicitly triggers a reading action.
+- **(g)** "https://huggingface.co/*" host permission - required solely for downloading the AI voice model files from Hugging Face's servers.
 
 **5.2** No permission is used to monitor, collect, log, or transmit browsing activity, page content, user data, or any other information.
 
