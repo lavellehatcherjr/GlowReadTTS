@@ -555,6 +555,22 @@ function handleRestart() {
     chrome.tts.stop();
     if (aiVoiceManager) aiVoiceManager.stop();
 
+    // Also stop any right-click AI read happening in the offscreen document.
+    // Mirrors handleStop. Without this, an in-flight offscreen AI read would
+    // keep playing in parallel with the new restart.
+    try {
+      chrome.runtime.sendMessage(
+        { target: 'offscreen', action: 'OFFSCREEN_STOP' },
+        function() {
+          if (chrome.runtime.lastError) {
+            // Offscreen document may not exist yet; safe to ignore.
+          }
+        }
+      );
+    } catch (e) {
+      // chrome.runtime may be unavailable in rare teardown timing; safe to ignore.
+    }
+
     if (state.shouldHighlight) {
       sendHighlightMessage('STOP_HIGHLIGHT');
     }
@@ -655,6 +671,10 @@ function handleUpload() {
         }
 
         speakText(text);
+      };
+      reader.onerror = () => {
+        updateStatus('Failed to read file');
+        hidePlaybackControls();
       };
       reader.readAsText(file);
     }
