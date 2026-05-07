@@ -354,3 +354,10 @@ select optgroup {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--brand-orange-hover);
 }
+
+.setting-help {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
