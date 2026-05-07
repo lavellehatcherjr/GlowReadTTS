@@ -27,3 +27,8 @@ This product includes the following third-party software:
   Copyright 2025 Xenova / Hugging Face
   Licensed under the Apache License, Version 2.0
   https://github.com/hexgrad/kokoro
+
+- Readability.js
+  Copyright Mozilla Foundation (originally Arc90 Inc 2010)
+  Licensed under the Apache License, Version 2.0
+  https://github.com/mozilla/readability
