@@ -557,8 +557,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     case 'GET_PAGE_TEXT': {
-      const pageText = document.body ? document.body.innerText : '';
-      sendResponse({ text: pageText });
+      let pageText = '';
+      let usedReaderMode = false;
+
+      // Try Reader Mode extraction first if Readability is available.
+      // Mozilla's documented safe pattern: pre-flight check, clone document
+      // (Readability mutates the DOM), parse, validate result.
+      try {
+        if (document.body &&
+            typeof Readability !== 'undefined' &&
+            typeof isProbablyReaderable === 'function' &&
+            isProbablyReaderable(document)) {
+          const documentClone = document.cloneNode(true);
+          const article = new Readability(documentClone).parse();
+          // Validate: must have textContent and meet minimum length threshold.
+          // The 200-char threshold filters out cases where Readability extracted
+          // only a stub (title without body, error page skeleton, etc.).
+          if (article && article.textContent && article.textContent.length >= 200) {
+            pageText = article.textContent.trim();
+            usedReaderMode = true;
+          }
+        }
+      } catch (e) {
+        // Readability failed (rare, on malformed pages or unusual DOM structures).
+        // Fall through to the original full-page extraction.
+        console.log('[GlowReadTTS] Reader Mode extraction failed, using full page:', e.message);
+      }
+
+      // Fallback: original full-page extraction (preserves defensive null check).
+      // Runs when Readability is unavailable, page is not article-shaped,
+      // extraction returned too little content, or an error was caught above.
+      if (!pageText) {
+        pageText = document.body ? document.body.innerText : '';
+      }
+
+      sendResponse({ text: pageText, usedReaderMode: usedReaderMode });
       break;
     }
 
