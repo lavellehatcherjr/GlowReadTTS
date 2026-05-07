@@ -15,7 +15,7 @@
   --text-tertiary: #8A8680;
   --text-on-accent: #1A1815;
 
-  /* Brand accents — orange */
+  /* Brand accents - orange */
   --brand-orange: #E8742C;
   --brand-orange-hover: #D9651D;
   --brand-orange-active: #C25711;
@@ -25,7 +25,7 @@
   --brand-orange-fade-4: rgba(232, 116, 44, 0.30);
   --brand-orange-fade-5: rgba(232, 116, 44, 0.50);
 
-  /* Brand accents — yellow */
+  /* Brand accents - yellow */
   --brand-yellow: #F4D060;
   --brand-yellow-fade-1: rgba(244, 208, 96, 0.18);
   --brand-yellow-fade-2: rgba(244, 208, 96, 0.30);
