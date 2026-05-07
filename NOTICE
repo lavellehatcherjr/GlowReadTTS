@@ -8,10 +8,15 @@ This product includes the following third-party software:
   Licensed under the Apache License, Version 2.0
   https://github.com/mozilla/pdf.js
 
-- Kokoro 82M ONNX Model
+- Kokoro 82M (upstream PyTorch model)
   Copyright 2025 hexgrad
   Licensed under the Apache License, Version 2.0
   https://huggingface.co/hexgrad/Kokoro-82M
+
+- Kokoro 82M ONNX (ONNX-converted distribution, downloaded by this extension)
+  Copyright 2025 ONNX Community / Xenova (Hugging Face Staff)
+  Licensed under the Apache License, Version 2.0
+  https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX
 
 - ONNX Runtime Web
   Copyright Microsoft Corporation
