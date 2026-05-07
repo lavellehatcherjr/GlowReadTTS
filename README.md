@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon.svg" alt="GlowReadTTS" width="200" height="200">
+  <img src="assets/icon256.png" alt="GlowReadTTS" width="200" height="200">
 </p>
 
 # GlowReadTTS
