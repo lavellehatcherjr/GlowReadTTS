@@ -1,6 +1,6 @@
 /**
  * GlowReadTTS Content Styles
- * Highlight-as-you-read — CSS Custom Highlight API + classList fallback
+ * Highlight-as-you-read - CSS Custom Highlight API + classList fallback
  *
  * SECURITY: Pure CSS. No JavaScript-injected inline styles.
  */
@@ -19,7 +19,7 @@
 
 /* ============================================
    CSS Custom Highlight API (primary path)
-   Styles Range objects directly — zero DOM modification
+   Styles Range objects directly - zero DOM modification
    ============================================ */
 ::highlight(glowreadtts-reading) {
   background-color: var(--highlight-bg);
