@@ -634,6 +634,15 @@ async function handleReadPage() {
           handleTextInput({ target: textInput });
         }
         state.shouldHighlight = true;  // Enable highlight-as-you-read for page text
+
+        // Inform the user whether Reader Mode was applied. Subtle hint;
+        // speakText's own status updates will overwrite this momentarily.
+        if (response.usedReaderMode) {
+          updateStatus('Reading article (Reader Mode)');
+        } else {
+          updateStatus('Reading page');
+        }
+
         speakText(response.text);
       } else {
         updateStatus('No content found');
@@ -1008,12 +1017,16 @@ async function injectContentScript(tab, action) {
   try {
     console.log('[GlowReadTTS] Injecting content script...');
     
+    // Note: This inline fallback intentionally uses innerText, not Readability.
+    // It only fires when the persistent content script is unavailable on the
+    // active tab. The persistent content script (which uses Readability via the
+    // GET_PAGE_TEXT handler) handles the common case.
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: () => {
         if (!window.GlowReadTTSInjected) {
           window.GlowReadTTSInjected = true;
-          
+
           chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (request.action === 'GET_SELECTED_TEXT') {
               const selectedText = window.getSelection().toString();
