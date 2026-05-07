@@ -165,7 +165,7 @@ async function speakFromServiceWorker(text, tabId) {
   // AI voice path: route through the offscreen document. On any failure
   // (model not downloaded, generation error), notify the user and fall through
   // to the system TTS path so they still get audio for this invocation.
-  // No on-page highlighting on the AI path in v1 — chrome.tts boundary events
+  // No on-page highlighting on the AI path in v1 - chrome.tts boundary events
   // don't fire for offscreen-rendered audio.
   if (voice.startsWith('ai:')) {
     const localStore = await chrome.storage.local.get('ai_voices_installed');
