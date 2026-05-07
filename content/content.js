@@ -3,7 +3,7 @@
  * Handles text selection, page interaction, and highlight-as-you-read
  *
  * SECURITY NOTES:
- * - Primary: CSS Custom Highlight API (zero DOM modification — styles Range objects)
+ * - Primary: CSS Custom Highlight API (zero DOM modification - styles Range objects)
  * - Fallback: classList toggling on existing block elements
  * - No innerHTML, insertAdjacentHTML, eval(), or document.write() anywhere
  * - No external dependencies
@@ -202,7 +202,7 @@ const GlowReadTTSHighlight = (() => {
 
   // --- Create Range from raw text positions ---
   // Maps character positions in the accumulated raw text to DOM Range objects.
-  // SECURITY: Uses only new Range(), setStart(), setEnd() — no DOM modification.
+  // SECURITY: Uses only new Range(), setStart(), setEnd() - no DOM modification.
   function createRangeFromPositions(rawStart, rawEnd, nodeMap) {
     let startNode = null, startOffset = 0;
     let endNode = null, endOffset = 0;
@@ -336,7 +336,7 @@ const GlowReadTTSHighlight = (() => {
     }
   }
 
-  // CSS Custom Highlight API path — zero DOM modification
+  // CSS Custom Highlight API path - zero DOM modification
   function highlightWithAPI(index) {
     const range = sentenceRanges[index];
     if (!range) return;
