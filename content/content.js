@@ -42,6 +42,43 @@ const GlowReadTTSHighlight = (() => {
   // classList fallback state
   let sentenceBlockMap = [];
 
+  // --- Watchdog: clean up stale highlights ---
+  // If no UPDATE/PROGRESS message arrives for WATCHDOG_TIMEOUT_MS while the
+  // highlight is active, assume the driver (popup or service worker context)
+  // was torn down and clean up. Higher timeout (60s) accommodates voices that
+  // don't fire word/sentence boundary events on some platforms.
+  let lastUpdateAt = 0;
+  let watchdogTimer = null;
+  const WATCHDOG_INTERVAL_MS = 5000;
+  const WATCHDOG_TIMEOUT_MS = 60000;
+
+  function startWatchdog() {
+    stopWatchdog();
+    lastUpdateAt = Date.now();
+    watchdogTimer = setInterval(() => {
+      if (!isHighlightActive) {
+        stopWatchdog();
+        return;
+      }
+      if (Date.now() - lastUpdateAt > WATCHDOG_TIMEOUT_MS) {
+        console.log('[GlowReadTTS] Highlight watchdog: no update in 60s, cleaning up');
+        cleanup();
+        stopWatchdog();
+      }
+    }, WATCHDOG_INTERVAL_MS);
+  }
+
+  function stopWatchdog() {
+    if (watchdogTimer !== null) {
+      clearInterval(watchdogTimer);
+      watchdogTimer = null;
+    }
+  }
+
+  function noteUpdate() {
+    lastUpdateAt = Date.now();
+  }
+
   // --- Sentence Splitting ---
   // Splits text into sentences with character offset tracking.
   // Handles ., !, ? followed by whitespace, and paragraph breaks.
@@ -405,6 +442,7 @@ const GlowReadTTSHighlight = (() => {
   // --- Cleanup ---
   // Removes all highlight state. Safe to call multiple times.
   function cleanup() {
+    stopWatchdog();
     stopAutoAdvance();
 
     // CSS Custom Highlight API cleanup
@@ -443,6 +481,7 @@ const GlowReadTTSHighlight = (() => {
       if (!text || text.trim().length === 0) return;
 
       isHighlightActive = true;
+      startWatchdog();
       sentences = splitIntoSentences(text);
       document.body.classList.add(READING_CLASS);
 
@@ -473,6 +512,7 @@ const GlowReadTTSHighlight = (() => {
      */
     updateCharIndex: function(charIndex) {
       if (!isHighlightActive) return;
+      noteUpdate();
       var idx = getSentenceIndexForChar(charIndex);
       highlightSentence(idx);
     },
@@ -483,6 +523,7 @@ const GlowReadTTSHighlight = (() => {
      */
     updateProgress: function(currentTime, duration) {
       if (!isHighlightActive || duration <= 0) return;
+      noteUpdate();
       stopAutoAdvance();
       updateFromProgress(currentTime / duration);
     },
