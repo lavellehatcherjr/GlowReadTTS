@@ -9,6 +9,9 @@ import KokoroManager from '../libs/kokoro/kokoro-manager.js';
 
 let manager = null;
 
+// Track the tab whose highlight we're driving so handleStop can also clean up.
+let currentTabId = null;
+
 function getManager() {
   if (!manager) {
     manager = new KokoroManager();
@@ -21,7 +24,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || msg.target !== 'offscreen') return false;
 
   if (msg.action === 'OFFSCREEN_GENERATE_AND_PLAY') {
-    handleGenerateAndPlay(msg.text, msg.voice, msg.speed)
+    handleGenerateAndPlay(msg.text, msg.voice, msg.speed, msg.tabId)
       .then(() => sendResponse({ success: true }))
       .catch(err => sendResponse({
         success: false,
@@ -44,13 +47,69 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return false;
 });
 
-async function handleGenerateAndPlay(text, voice, speed) {
+async function handleGenerateAndPlay(text, voice, speed, tabId) {
   const mgr = getManager();
-  // mgr.generate() resolves once playback starts; the audio element keeps
-  // playing in this document until it ends or is stopped.
-  await mgr.generate(text, voice, speed);
+  const audio = await mgr.generate(text, voice, speed);
+
+  // Track the active tab so handleStop can also send OFFSCREEN_ENDED for
+  // highlight cleanup (mgr.stop() does NOT fire `ended`/`error`, so without
+  // explicit signaling, the page highlight would stay until the watchdog
+  // catches it ~60s later).
+  currentTabId = tabId || null;
+
+  // If a tabId was provided, relay timeupdate progress so the content script
+  // can advance the highlight in real time. Without this, AI right-click reads
+  // would have no on-page highlight (asymmetric with system TTS reads).
+  if (tabId && audio) {
+    const onTimeUpdate = () => {
+      if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
+      try {
+        chrome.runtime.sendMessage({
+          target: 'service-worker',
+          action: 'OFFSCREEN_PROGRESS',
+          tabId: tabId,
+          currentTime: audio.currentTime,
+          duration: audio.duration
+        });
+      } catch (e) { /* SW may be torn down; safe to ignore */ }
+    };
+    const onEnded = () => {
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('error', onEnded);
+      try {
+        chrome.runtime.sendMessage({
+          target: 'service-worker',
+          action: 'OFFSCREEN_ENDED',
+          tabId: tabId
+        });
+      } catch (e) { /* ignore */ }
+      // Clear currentTabId only if it still matches this tab (a newer
+      // generate() may have already replaced it).
+      if (currentTabId === tabId) currentTabId = null;
+    };
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('error', onEnded);
+  }
+
+  return audio;
 }
 
 function handleStop() {
   if (manager) manager.stop();
+
+  // Clean up the page highlight. mgr.stop() pauses audio without firing
+  // `ended`, so the listener registered in handleGenerateAndPlay won't run.
+  // Send OFFSCREEN_ENDED explicitly so the SW can relay STOP_HIGHLIGHT.
+  if (currentTabId !== null) {
+    try {
+      chrome.runtime.sendMessage({
+        target: 'service-worker',
+        action: 'OFFSCREEN_ENDED',
+        tabId: currentTabId
+      });
+    } catch (e) { /* ignore */ }
+    currentTabId = null;
+  }
 }
