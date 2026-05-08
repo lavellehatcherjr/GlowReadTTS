@@ -73,6 +73,10 @@
     {
       "resources": ["eula/*"],
       "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["help/*"],
+      "matches": ["<all_urls>"]
     }
   ]
 }
