@@ -38,6 +38,7 @@ Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS 
 - **(c)** EULA/Privacy Policy acceptance state (`chrome.storage.local`) - records that you accepted these terms, the version accepted, and the date of acceptance.
 - **(d)** Cached AI voice model files (Cache API) - approximately 95MB of neural network model weights and voice data. These are inert data files that cannot execute code.
 - **(e)** Session text for playback continuity (`sessionStorage`) - temporarily stores the most recently read text. This is automatically cleared when the popup is closed.
+- **(f)** Transient playback state flag (`chrome.storage.session`) - a single boolean (`playbackActive`) used internally to surface a "Reading in progress" banner when the popup reopens during an active read. Cleared when audio ends or is stopped, and automatically cleared on browser restart. Contains no user content or identifying information.
 
 **3.2** No data stored by the Software is accessible to other extensions, websites, or applications. Chrome's storage APIs are sandboxed to the extension's unique origin.
 
