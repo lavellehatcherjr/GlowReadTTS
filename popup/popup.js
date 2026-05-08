@@ -15,6 +15,28 @@ const state = {
   shouldHighlight: false  // true when reading page/selection text (enables highlight-as-you-read)
 };
 
+// Playback state chokepoints. ALL audio start events route through notifyPlaybackStarted.
+// ALL audio termination events (user-stop, natural-end, error) route through notifyPlaybackEnded.
+// State persists across popup close/open via chrome.storage.session, used to surface
+// the "Reading in progress" banner when the popup reopens during active playback.
+async function notifyPlaybackStarted(source) {
+  try {
+    await chrome.storage.session.set({ playbackActive: true });
+    console.log('[GlowReadTTS] Playback started:', source);
+  } catch (e) {
+    console.log('[GlowReadTTS] Could not set playback state:', e.message);
+  }
+}
+
+async function notifyPlaybackEnded(reason) {
+  try {
+    await chrome.storage.session.remove('playbackActive');
+    console.log('[GlowReadTTS] Playback ended:', reason);
+  } catch (e) {
+    console.log('[GlowReadTTS] Could not clear playback state:', e.message);
+  }
+}
+
 // Lazily-loaded AI voice manager (KokoroManager singleton)
 let aiVoiceManager = null;
 async function getAIVoiceManager() {
@@ -101,6 +123,7 @@ async function initializePopup() {
     }
 
     await createUI();
+    await createStopReadingBanner();
     setupEventListeners();
     await loadSavedSettings();
     loadAvailableVoices();
@@ -109,6 +132,44 @@ async function initializePopup() {
   } catch (error) {
     console.error('[GlowReadTTS] Initialization error:', error);
     showError(error);
+  }
+}
+
+// Surfaces a "Reading in progress" banner when the popup reopens during an
+// active read. State comes from chrome.storage.session.playbackActive, which
+// is set/cleared by notifyPlaybackStarted/notifyPlaybackEnded chokepoints.
+// Must run AFTER createUI() because createUI() rewrites container.innerHTML.
+async function createStopReadingBanner() {
+  const container = document.getElementById('popup-container');
+  if (!container) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'stop-reading-banner';
+  banner.className = 'stop-reading-banner';
+  banner.innerHTML = `
+    <div class="banner-content">
+      <span class="banner-icon">⏸</span>
+      <span class="banner-text">Reading in progress</span>
+      <button id="banner-stop-btn" class="banner-stop-btn">Stop</button>
+    </div>
+  `;
+
+  // Click anywhere on the banner triggers stop. handleStop already calls
+  // notifyPlaybackEnded('user-stop'), which clears the flag.
+  banner.addEventListener('click', () => {
+    handleStop();
+    banner.classList.remove('visible');
+  });
+
+  container.insertBefore(banner, container.firstChild);
+
+  try {
+    const result = await chrome.storage.session.get('playbackActive');
+    if (result.playbackActive) {
+      banner.classList.add('visible');
+    }
+  } catch (e) {
+    // chrome.storage.session unavailable; banner stays hidden.
   }
 }
 
@@ -305,7 +366,7 @@ async function createUI() {
           <label class="setting-label">Speed</label>
           <div class="speed-control">
             <input type="range" id="speed-slider" class="speed-slider"
-                   min="0.25" max="4" step="0.25" value="1">
+                   min="0.25" max="2" step="0.25" value="1">
             <span id="speed-value" class="speed-value">1.0x</span>
           </div>
         </div>
@@ -547,6 +608,7 @@ function handleStop() {
   updatePlayButton('stopped');
   hidePlaybackControls();
   updateStatus('Stopped');
+  notifyPlaybackEnded('user-stop');
 }
 
 function handleRestart() {
@@ -574,6 +636,10 @@ function handleRestart() {
     if (state.shouldHighlight) {
       sendHighlightMessage('STOP_HIGHLIGHT');
     }
+
+    // Clear playback flag BEFORE the new read kicks off; speakText will
+    // re-set it via notifyPlaybackStarted. Reversing this order would race.
+    notifyPlaybackEnded('user-restart');
 
     setTimeout(() => {
       speakText(text);
@@ -615,7 +681,7 @@ async function handleReadPage() {
   setSelectedButton('btn-read-page');
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     chrome.tabs.sendMessage(tab.id, { action: 'GET_PAGE_TEXT' }, (response) => {
       if (chrome.runtime.lastError) {
         console.log('[GlowReadTTS] Need to inject content script for page');
@@ -788,9 +854,59 @@ async function handleSpeedChange(e) {
   }
 }
 
+// Splits long text into chunks at sentence boundaries for chrome.tts.
+// chrome.tts has a documented 32,768 char limit but voices fail silently
+// on much smaller amounts (often a few thousand chars for network voices).
+// 400 chars per chunk is a conservative ceiling that works reliably across
+// system voices, Google network voices, and Microsoft SAPI voices.
+// Splits at sentence-ending punctuation (. ! ?) followed by whitespace.
+// Falls back to whitespace splitting if no sentence boundary fits within
+// the chunk size, then to hard cut as last resort.
+function chunkTextForTTS(text, maxChunkSize = 400) {
+  if (!text || text.length <= maxChunkSize) {
+    return [text];
+  }
+  const chunks = [];
+  let remaining = text.trim();
+  while (remaining.length > maxChunkSize) {
+    let cutPoint = -1;
+    const searchEnd = Math.min(remaining.length, maxChunkSize);
+    // Prefer sentence boundary
+    for (let i = searchEnd - 1; i >= Math.floor(maxChunkSize / 2); i--) {
+      const c = remaining[i];
+      if ((c === '.' || c === '!' || c === '?') &&
+          (i === remaining.length - 1 || /\s/.test(remaining[i + 1]))) {
+        cutPoint = i + 1;
+        break;
+      }
+    }
+    // Fall back to whitespace
+    if (cutPoint === -1) {
+      for (let i = searchEnd - 1; i >= Math.floor(maxChunkSize / 2); i--) {
+        if (/\s/.test(remaining[i])) {
+          cutPoint = i + 1;
+          break;
+        }
+      }
+    }
+    // Hard cut as last resort
+    if (cutPoint === -1) {
+      cutPoint = maxChunkSize;
+    }
+    chunks.push(remaining.slice(0, cutPoint).trim());
+    remaining = remaining.slice(cutPoint).trim();
+  }
+  if (remaining.length > 0) {
+    chunks.push(remaining);
+  }
+  return chunks;
+}
+
 // Main TTS Function
 function speakText(text) {
   if (!text) return;
+
+  notifyPlaybackStarted('popup-speakText');
 
   chrome.tts.stop();
   if (aiVoiceManager) aiVoiceManager.stop();
@@ -858,6 +974,7 @@ async function useAIVoiceTTS(text) {
       // Free RAM once playback finishes
       mgr.dispose();
       setTimeout(() => hidePlaybackControls(), 2000);
+      notifyPlaybackEnded('ai-natural-end');
     });
 
     audio.addEventListener('error', () => {
@@ -869,6 +986,7 @@ async function useAIVoiceTTS(text) {
         sendHighlightMessage('STOP_HIGHLIGHT');
         state.shouldHighlight = false;
       }
+      notifyPlaybackEnded('ai-error');
     });
   } catch (error) {
     console.error('[GlowReadTTS] AI voice error:', error);
@@ -880,6 +998,7 @@ async function useAIVoiceTTS(text) {
       sendHighlightMessage('STOP_HIGHLIGHT');
       state.shouldHighlight = false;
     }
+    notifyPlaybackEnded('ai-exception');
   }
 }
 
@@ -958,51 +1077,84 @@ function useBrowserTTS(text) {
     pitch: 1.0,
     volume: 1.0,
     // Request word/sentence boundary events for highlight tracking
-    desiredEventTypes: ['start', 'end', 'word', 'sentence', 'interrupted', 'cancelled', 'error', 'pause', 'resume'],
-    onEvent: (event) => {
-      if (event.type === 'start') {
-        state.isPlaying = true;
-        state.isPaused = false;
-        updatePlayButton('playing');
-        updateStatus('Reading...');
-      } else if (event.type === 'word' || event.type === 'sentence') {
-        // Update highlight position using charIndex from boundary event
-        if (state.shouldHighlight && typeof event.charIndex === 'number') {
-          sendHighlightMessage('HIGHLIGHT_UPDATE', { charIndex: event.charIndex });
-        }
-      } else if (event.type === 'end' || event.type === 'interrupted' || event.type === 'cancelled') {
-        state.isPlaying = false;
-        state.isPaused = false;
-        updatePlayButton('stopped');
-        updateStatus(event.type === 'end' ? 'Finished' : 'Stopped');
-        // Clean up highlighting
-        if (state.shouldHighlight) {
-          sendHighlightMessage('STOP_HIGHLIGHT');
-          state.shouldHighlight = false;
-        }
-        if (event.type === 'end') {
-          setTimeout(() => hidePlaybackControls(), 2000);
-        } else {
-          hidePlaybackControls();
-        }
-      } else if (event.type === 'error') {
-        state.isPlaying = false;
-        updateStatus('Error: ' + (event.errorMessage || 'Unknown'));
-        updatePlayButton('stopped');
-        if (state.shouldHighlight) {
-          sendHighlightMessage('STOP_HIGHLIGHT');
-          state.shouldHighlight = false;
-        }
-        hidePlaybackControls();
-      }
-    }
+    desiredEventTypes: ['start', 'end', 'word', 'sentence', 'interrupted', 'cancelled', 'error', 'pause', 'resume']
   };
 
   if (state.currentVoice !== 'default') {
     options.voiceName = state.currentVoice;
   }
 
-  chrome.tts.speak(text, options);
+  // Bug A fix: chrome.tts voices fail silently on long text (Google network
+  // voices fail at a few thousand chars even though spec says 32K limit).
+  // Split at sentence boundaries and queue with enqueue:true so voices stay
+  // within their working range while audio plays continuously.
+  const chunks = chunkTextForTTS(text);
+  console.log('[GlowReadTTS] Speaking', chunks.length, 'chunk(s) totalling', text.length, 'chars');
+
+  // Track cumulative offset so 'word'/'sentence' events map back to the full
+  // text's character positions, not the chunk being spoken. Without this,
+  // each chunk boundary would cause the on-page highlight to jump back to
+  // sentence 1 of the article (event.charIndex resets to 0 per chunk).
+  let cumulativeOffset = 0;
+
+  chunks.forEach((chunk, index) => {
+    const isLastChunk = index === chunks.length - 1;
+    // Capture this chunk's start offset for the closure (event handlers
+    // fire later when chunk is being spoken, after the loop has advanced).
+    const chunkStartOffset = cumulativeOffset;
+    // Advance offset for next chunk. +1 accounts for the trim/space lost
+    // between chunks (chunkTextForTTS calls .trim() which strips whitespace).
+    cumulativeOffset += chunk.length + 1;
+
+    const chunkOptions = {
+      ...options,
+      enqueue: index > 0,
+      onEvent: (event) => {
+        if (event.type === 'start' && index === 0) {
+          state.isPlaying = true;
+          state.isPaused = false;
+          updatePlayButton('playing');
+          updateStatus('Reading...');
+        } else if ((event.type === 'word' || event.type === 'sentence') &&
+                   state.shouldHighlight && typeof event.charIndex === 'number') {
+          // CHANGED FROM ORIGINAL: charIndex is per-chunk; add chunkStartOffset
+          // so the highlight maps to positions in the full original text.
+          sendHighlightMessage('HIGHLIGHT_UPDATE', {
+            charIndex: chunkStartOffset + event.charIndex
+          });
+        } else if ((event.type === 'end' || event.type === 'interrupted' ||
+                    event.type === 'cancelled') && isLastChunk) {
+          state.isPlaying = false;
+          state.isPaused = false;
+          updatePlayButton('stopped');
+          updateStatus(event.type === 'end' ? 'Finished' : 'Stopped');
+          // Clean up highlighting
+          if (state.shouldHighlight) {
+            sendHighlightMessage('STOP_HIGHLIGHT');
+            state.shouldHighlight = false;
+          }
+          if (event.type === 'end') {
+            setTimeout(() => hidePlaybackControls(), 2000);
+          } else {
+            hidePlaybackControls();
+          }
+          notifyPlaybackEnded('browser-tts-end');
+        } else if (event.type === 'error') {
+          chrome.tts.stop();  // flush any remaining queued chunks
+          state.isPlaying = false;
+          updateStatus('Error: ' + (event.errorMessage || 'Unknown'));
+          updatePlayButton('stopped');
+          if (state.shouldHighlight) {
+            sendHighlightMessage('STOP_HIGHLIGHT');
+            state.shouldHighlight = false;
+          }
+          hidePlaybackControls();
+          notifyPlaybackEnded('browser-tts-error');
+        }
+      }
+    };
+    chrome.tts.speak(chunk, chunkOptions);
+  });
 }
 
 // Content Script Injection - COMPLETE IMPLEMENTATION
@@ -1176,14 +1328,34 @@ async function loadSavedSettings() {
     }
 
     if (result.speed) {
-      state.currentSpeed = result.speed;
+      // Defensive clamp: chrome.tts voices have rate ceilings (Google network
+      // voices verified to silently no-op above 2.0; other voices likely similar).
+      // Slider HTML now caps at 2.0, but stored values from before the cap
+      // (3.0, 3.5, 4.0) need migration. Clamp on read AND write back so any
+      // existing user with a stale value self-heals on first popup open.
+      const clampedSpeed = Math.max(0.25, Math.min(2.0, parseFloat(result.speed) || 1.0));
+      state.currentSpeed = clampedSpeed;
       const speedSlider = document.getElementById('speed-slider');
       const speedValue = document.getElementById('speed-value');
       if (speedSlider) {
-        speedSlider.value = result.speed;
+        speedSlider.value = clampedSpeed;
       }
       if (speedValue) {
-        speedValue.textContent = `${result.speed}x`;
+        speedValue.textContent = `${clampedSpeed}x`;
+      }
+      // Migration write-back: if we clamped, persist the corrected value so
+      // the right-click flow (which reads independently) also gets the fix.
+      if (clampedSpeed !== result.speed) {
+        chrome.storage.sync.set({ speed: clampedSpeed });
+        // Match handleSpeedChange's dual-write pattern: also update the
+        // nested settings.speed key if present.
+        chrome.storage.sync.get('settings').then(stored => {
+          if (stored.settings) {
+            chrome.storage.sync.set({
+              settings: { ...stored.settings, speed: clampedSpeed }
+            });
+          }
+        });
       }
     }
 
@@ -1212,7 +1384,7 @@ async function loadAvailableVoices() {
   try {
     chrome.tts.getVoices((voices) => {
       const browserGroup = document.getElementById('browser-voices-group');
-      
+
       if (browserGroup && voices) {
         voices.forEach(voice => {
           if (voice.voiceName) {
@@ -1222,6 +1394,27 @@ async function loadAvailableVoices() {
             browserGroup.appendChild(option);
           }
         });
+      }
+      const voiceSelectEl = document.getElementById('voice-select');
+
+      // Bug B fix: chrome.tts.getVoices() is async and populates the dropdown
+      // AFTER loadSavedSettings has already tried to set dropdown.value. By
+      // the time browser voices arrive, dropdown.value has settled to default
+      // because the saved voice wasn't yet in the options list.
+      // Re-apply state.currentVoice now that all voices are present.
+      if (state.currentVoice && voiceSelectEl) {
+        const savedVoiceOption = Array.from(voiceSelectEl.options).find(
+          opt => opt.value === state.currentVoice
+        );
+        if (savedVoiceOption) {
+          voiceSelectEl.value = state.currentVoice;
+          console.log('[GlowReadTTS] Re-applied saved voice after voice population:', state.currentVoice);
+        } else {
+          // Saved voice no longer exists (uninstalled, voice list changed, etc.)
+          // Leave dropdown at its current default and clear stale state.
+          console.log('[GlowReadTTS] Saved voice no longer available:', state.currentVoice);
+          state.currentVoice = voiceSelectEl.value;
+        }
       }
     });
   } catch (error) {
