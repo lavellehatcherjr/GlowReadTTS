@@ -565,3 +565,52 @@ body {
 .text-input::-webkit-scrollbar-thumb:hover {
   background: var(--brand-orange-hover);
 }
+
+/* Stop Reading banner — surfaces when popup reopens during active playback. */
+.stop-reading-banner {
+  background: var(--brand-orange);
+  color: white;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--brand-orange-fade-2, rgba(0, 0, 0, 0.1));
+  cursor: pointer;
+  user-select: none;
+  display: none;
+}
+
+.stop-reading-banner:hover {
+  background: var(--brand-orange-hover, var(--brand-orange));
+}
+
+.stop-reading-banner.visible {
+  display: block;
+}
+
+.stop-reading-banner .banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stop-reading-banner .banner-icon {
+  font-size: 18px;
+}
+
+.stop-reading-banner .banner-text {
+  flex: 1;
+  font-weight: 500;
+}
+
+.stop-reading-banner .banner-stop-btn {
+  background: white;
+  color: var(--brand-orange);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.stop-reading-banner .banner-stop-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
