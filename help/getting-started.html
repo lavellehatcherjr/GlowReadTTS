@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Getting Started with GlowReadTTS</title>
+  <link rel="stylesheet" href="getting-started.css">
+</head>
+<body>
+  <main class="container">
+    <header class="page-header">
+      <h1>Getting Started with GlowReadTTS</h1>
+      <p class="lead">GlowReadTTS reads webpages, PDFs, and text files aloud using your system&rsquo;s voices or downloadable on-device AI voices. The fastest way to try it is to highlight some text on a page, right-click, and choose <strong>Read with GlowReadTTS</strong>.</p>
+    </header>
+
+    <section>
+      <h2>Quick start</h2>
+      <ol>
+        <li>Highlight any text on a webpage.</li>
+        <li>Right-click on the selection.</li>
+        <li>Click <strong>Read with GlowReadTTS</strong>.</li>
+      </ol>
+      <p>Audio starts; sentences highlight on the page as they&rsquo;re read. Click the toolbar icon and press <strong>Stop</strong> when you&rsquo;re done. The rest of this guide covers the other reading methods, voices, and settings.</p>
+    </section>
+
+    <section>
+      <h2>Installation</h2>
+      <p><strong>From the Chrome Web Store:</strong> open the GlowReadTTS listing, click <em>Add to Chrome</em>, accept the permission prompt. Pin the icon to your toolbar via the puzzle-piece menu if it doesn&rsquo;t appear automatically.</p>
+      <p><strong>From source:</strong> clone the repo, open <code>chrome://extensions</code>, toggle <em>Developer mode</em>, click <em>Load unpacked</em>, and select the folder containing <code>manifest.json</code>.</p>
+      <p>Either way, an EULA tab opens automatically after install. Accept it before using any feature.</p>
+    </section>
+
+    <section>
+      <h2>First-time setup</h2>
+      <p>The EULA tab shows the Terms of Use and Privacy Policy. Scroll to the bottom (the checkbox is disabled until you reach the end), tick the agreement box, click <strong>Accept &amp; Continue</strong>. The tab closes and the extension is active.</p>
+      <p>If you click <strong>Decline</strong>, the extension stays installed but every feature is gated. Click the toolbar icon and <strong>Review Terms</strong> when you&rsquo;re ready to come back. Future material updates to the agreement may re-prompt; cosmetic changes won&rsquo;t.</p>
+    </section>
+
+    <section>
+      <h2>Reading text</h2>
+      <p>There are five ways to feed text into the extension. Pick whichever fits your situation.</p>
+      <p><strong>Right-click selected text.</strong> Highlight text, right-click, choose <em>Read with GlowReadTTS</em>. The fastest path; works without opening the popup. The menu item only appears when text is selected. It doesn&rsquo;t work on <code>chrome://</code>, the Chrome Web Store, the New Tab page, or other browser-internal pages &mdash; that&rsquo;s a Chrome security boundary, not a bug. If the EULA hasn&rsquo;t been accepted, the menu item opens the EULA tab instead of starting a read.</p>
+      <p><strong>Popup &rarr; Selection button.</strong> Same idea, but initiated from the popup. Useful when the right-click menu is awkward or being intercepted by another extension. Highlight text, click the toolbar icon, click <strong>Selection</strong>. The text appears in the popup textarea so you can confirm what&rsquo;s about to be read.</p>
+      <p><strong>Popup &rarr; Full Page button.</strong> Reads the main article content of the active tab. For news articles, blog posts, and other article-shaped pages, automatically extracts just the article body (skipping nav, sidebar, footer, ads, and cookie banners) using Mozilla&rsquo;s Readability library. For non-article pages (forums, web apps, search results), falls back to reading the full visible text. The textarea shows the first 5,000 characters of whichever was extracted; the full text is what gets spoken. The status briefly indicates &ldquo;Reading article (Reader Mode)&rdquo; or &ldquo;Reading page&rdquo; so you know which mode was used.</p>
+      <p><strong>Popup &rarr; textarea + Read Text.</strong> Type or paste any text into the textarea and click <strong>Read Text</strong>. The character count is gray under 2,000 characters, yellow at 2,000&ndash;5,000, red over 5,000 (some speech engines may cut off very long inputs). Hover the count for the explanation. The trash icon next to the textarea clears it. The question-mark icon opens this getting-started guide.</p>
+      <p><strong>Popup &rarr; Upload button.</strong> Loads a file from disk. Supports <code>.txt</code>, <code>.md</code>, <code>.json</code>, <code>.csv</code>, and <code>.pdf</code>. PDFs are extracted by a bundled parser; PDFs over 50,000 characters are truncated with a notice showing the original length, and image-only (scanned) PDFs return <em>no readable text</em>. Markdown, JSON, and CSV files are read as raw text &mdash; syntax characters get spoken too.</p>
+      <p>The popup also has a <strong>Test Voice</strong> button in the Quick Actions grid that reads a fixed test sentence using the currently selected voice and speed. Useful for auditioning AI voices once they&rsquo;re installed.</p>
+    </section>
+
+    <section>
+      <h2>Voices</h2>
+      <p><strong>Browser / system voices</strong> are already installed on your operating system. They&rsquo;re free, instant, and work offline. Quality varies by OS &mdash; macOS tends to have the best built-in voices, Linux the worst.</p>
+      <p><strong>AI voices</strong> are 15 neural-network voices (American and British English) that run entirely on-device. They sound noticeably more natural than most system voices but require a one-time ~95MB download from huggingface.co. After download, they work offline.</p>
+      <p>To download AI voices:</p>
+      <ol>
+        <li>Click the toolbar icon to open the popup.</li>
+        <li>Click <strong>Download AI Voices (~95MB)</strong> in the AI Voices card. Keep the popup open until the progress bar finishes &mdash; closing it cancels the download.</li>
+        <li>When done, the status row reads <em>Installed. Select an AI voice in the Voice dropdown below.</em> and the dropdown briefly outlines in green.</li>
+        <li>Open the Voice dropdown and pick one. The choice persists across popup opens and across your Chrome devices via Chrome sync.</li>
+      </ol>
+      <p>Use system voices for short reads or on slow machines; use AI voices for long-form listening. Switch anytime from the Voice dropdown.</p>
+    </section>
+
+    <section>
+      <h2>Playback, speed, and highlights</h2>
+      <p>When a read starts, the popup shows three controls: <strong>Stop</strong> (halts everything immediately), <strong>Play/Pause</strong> (the larger center button), and <strong>Restart</strong> (begins the same text from the top). Audio continues even if you close the popup &mdash; reopen and press Stop to halt. The popup&rsquo;s Stop button also halts AI right-click reads.</p>
+      <p>The <strong>Speed slider</strong> ranges from 0.25&times; to 2&times; in 0.25 increments, defaulting to 1&times;. Changing speed mid-read stops the current read; press the entry-point button again to restart at the new speed.</p>
+      <p>A translucent yellow <strong>highlight</strong> follows the spoken sentence on the page during right-click reads, Selection reads, and Full Page reads, and the page auto-scrolls to keep the active sentence in view. Highlighting doesn&rsquo;t apply to typed/pasted text, uploaded files, or the Test Voice button (the text isn&rsquo;t on the page). If the popup closes mid-read, a 60-second watchdog clears any orphaned highlight automatically.</p>
+    </section>
+
+    <section>
+      <h2>Settings</h2>
+      <p>Open the settings page from the popup&rsquo;s gear icon, or via <code>chrome://extensions</code> &rarr; Details &rarr; Extension options.</p>
+      <p>Three things live there: <strong>Default Voice</strong> (system/browser voices only &mdash; AI voices are configured in the popup), <strong>Default Speed</strong> (same range as the popup&rsquo;s slider), and the <strong>AI Voice Cache</strong> controls, including a <em>Clear AI Voice Cache (~95MB)</em> button that prompts a confirmation before deleting. The About section shows version, author, and license.</p>
+    </section>
+
+    <section>
+      <h2>Privacy</h2>
+      <p>GlowReadTTS doesn&rsquo;t collect any data, doesn&rsquo;t track you, and doesn&rsquo;t require an account. All text processing happens locally on your device &mdash; the text you read never leaves your computer. The only network call the extension makes is the one-time AI voice download from huggingface.co. After that, it works entirely offline. Permissions are used only when you explicitly trigger a read. See <a href="https://github.com/lavellehatcherjr/GlowReadTTS/blob/main/PRIVACY.md">PRIVACY.md</a> for the full statement.</p>
+    </section>
+
+    <section>
+      <h2>Quick reference</h2>
+      <table class="quick-ref">
+        <thead>
+          <tr><th>Task</th><th>How to do it</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Read selected text (fastest)</td><td>Highlight, right-click, <em>Read with GlowReadTTS</em></td></tr>
+          <tr><td>Read selected text (popup)</td><td>Highlight, toolbar icon, <em>Selection</em></td></tr>
+          <tr><td>Read full page</td><td>Toolbar icon, <em>Full Page</em></td></tr>
+          <tr><td>Read a file (<code>.txt</code>/<code>.md</code>/<code>.pdf</code> etc)</td><td>Toolbar icon, <em>Upload</em></td></tr>
+          <tr><td>Read typed or pasted text</td><td>Toolbar icon, type or paste, <em>Read Text</em></td></tr>
+          <tr><td>Test current voice</td><td>Toolbar icon, <em>Test Voice</em></td></tr>
+          <tr><td>Download AI voices (one time)</td><td>Toolbar icon, <em>Download AI Voices (~95MB)</em></td></tr>
+          <tr><td>Switch voices</td><td>Toolbar icon, Voice dropdown</td></tr>
+          <tr><td>Change speed</td><td>Toolbar icon, Speed slider (0.25&times; &ndash; 2&times;)</td></tr>
+          <tr><td>Pause / resume</td><td>Toolbar icon, center playback button</td></tr>
+          <tr><td>Stop everything</td><td>Toolbar icon, <em>Stop</em></td></tr>
+          <tr><td>Open settings</td><td>Toolbar icon, gear icon</td></tr>
+          <tr><td>Clear AI cache</td><td>Settings, <em>Clear AI Voice Cache</em></td></tr>
+          <tr><td>Re-accept the EULA</td><td>Toolbar icon, <em>Review Terms</em></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Troubleshooting</h2>
+      <p><strong>Nothing happens when I click Read.</strong> You&rsquo;re probably on a restricted page (<code>chrome://</code>, the Web Store, the New Tab page, internal browser views). Move to a regular webpage. For Selection or right-click flows, also confirm text is actually selected.</p>
+      <p><strong>Audio keeps playing after I close the popup.</strong> Browser TTS is global to Chrome and continues across popup closes; AI right-click reads run in a separate document with the same property. Click the toolbar icon to reopen the popup, then <strong>Stop</strong>.</p>
+      <p><strong>The yellow highlight is stuck on the page.</strong> Wait 60 seconds &mdash; the content-script watchdog clears it automatically. Or reload/navigate to clear it instantly. Or open the popup and press <strong>Stop</strong>.</p>
+      <p><strong>AI voices won&rsquo;t download.</strong> Keep the popup open during the download (closing it cancels). Check your internet connection &mdash; the download fetches from huggingface.co. If it fails partway, click <em>Download AI Voices</em> again to retry.</p>
+      <p><strong>PDF says &ldquo;no readable text&rdquo;.</strong> The PDF is image-only (scanned). The extension can&rsquo;t OCR images. Use a separate OCR tool to convert it first, or paste the text into the popup textarea instead.</p>
+      <p><strong>My selected voice keeps changing on its own.</strong> This happens once, after a version upgrade where your previous AI voice was retired. The extension migrates you to <em>Heart</em> and shows a notice in the AI Voices status row. Pick a different voice from the dropdown if you&rsquo;d prefer; the new selection persists.</p>
+      <p><strong>Test Voice says &ldquo;browser voice&rdquo; when I picked an AI voice.</strong> Reload the extension via <code>chrome://extensions</code> (toggle off/on, or click the refresh icon). You&rsquo;re on an outdated build; the latest version branches the Test Voice copy on whether an AI or browser voice is active.</p>
+      <p><strong>Audio sounds choppy or distorted.</strong> Most often this is CPU load (close other tabs/apps) or extreme speed settings &mdash; 0.25&times; and 2&times; can introduce artifacts depending on the voice. The 0.75&times;&ndash;1.75&times; range is generally cleanest. For browser voices, switching to a different system voice can also help.</p>
+    </section>
+
+    <section>
+      <h2>Where to get help</h2>
+      <ul>
+        <li><a href="https://github.com/lavellehatcherjr/GlowReadTTS/issues">GitHub issues</a></li>
+        <li><a href="https://github.com/lavellehatcherjr/GlowReadTTS/blob/main/PRIVACY.md">Privacy Policy</a></li>
+        <li><a href="https://github.com/lavellehatcherjr/GlowReadTTS/blob/main/EULA.md">Terms of Use</a></li>
+        <li><a href="https://github.com/lavellehatcherjr/GlowReadTTS/blob/main/LICENSE">License</a> (Apache 2.0)</li>
+        <li><a href="https://github.com/lavellehatcherjr/GlowReadTTS/blob/main/NOTICE">Third-party notices</a></li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
