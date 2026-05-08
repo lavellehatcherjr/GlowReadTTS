@@ -23,6 +23,28 @@ const state = {
   highlightTabId: null
 };
 
+// Playback state chokepoints. Mirrors popup.js's pair. SW-initiated playback
+// (right-click context menu) sets/clears the same `playbackActive` flag in
+// chrome.storage.session so the popup banner surfaces correctly when reopened
+// during a SW-driven read.
+async function notifyPlaybackStartedSW(source) {
+  try {
+    await chrome.storage.session.set({ playbackActive: true });
+    console.log('[GlowReadTTS SW] Playback started:', source);
+  } catch (e) {
+    console.log('[GlowReadTTS SW] Could not set playback state:', e.message);
+  }
+}
+
+async function notifyPlaybackEndedSW(reason) {
+  try {
+    await chrome.storage.session.remove('playbackActive');
+    console.log('[GlowReadTTS SW] Playback ended:', reason);
+  } catch (e) {
+    console.log('[GlowReadTTS SW] Could not clear playback state:', e.message);
+  }
+}
+
 // Per-session flag. Resets on extension reload (the SW is torn down too).
 // Tracks whether we've shown the "Preparing audio" notification yet, so the
 // first AI right-click of a session shows it and subsequent ones don't.
@@ -160,7 +182,11 @@ async function speakFromServiceWorker(text, tabId) {
 
   const settings = await chrome.storage.sync.get(['voice', 'speed']);
   let voice = settings.voice || 'default';
-  const speed = settings.speed || 1.0;
+  // Defensive clamp matching popup.js loadSavedSettings. Stale stored values
+  // from before the slider cap (3.0, 4.0) get clamped to 2.0 here too,
+  // since the right-click flow reads storage independently of the popup.
+  const rawSpeed = parseFloat(settings.speed) || 1.0;
+  const speed = Math.max(0.25, Math.min(2.0, rawSpeed));
 
   // AI voice path: route through the offscreen document. On any failure
   // (model not downloaded, generation error), notify the user and fall through
@@ -191,6 +217,8 @@ async function speakFromServiceWorker(text, tabId) {
           action: 'START_HIGHLIGHT',
           text: text
         });
+
+        notifyPlaybackStartedSW('right-click-ai-voice');
 
         const response = await chrome.runtime.sendMessage({
           target: 'offscreen',
@@ -249,6 +277,7 @@ async function speakFromServiceWorker(text, tabId) {
           sendToTab(state.highlightTabId, { action: 'STOP_HIGHLIGHT' });
           state.highlightTabId = null;
         }
+        notifyPlaybackEndedSW('sw-browser-tts-end');
       }
     }
   };
@@ -257,6 +286,7 @@ async function speakFromServiceWorker(text, tabId) {
     ttsOptions.voiceName = voice;
   }
 
+  notifyPlaybackStartedSW('right-click-browser-tts');
   chrome.tts.speak(text, ttsOptions);
 }
 
@@ -324,6 +354,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           if (state.highlightTabId === request.tabId) {
             state.highlightTabId = null;
           }
+          notifyPlaybackEndedSW('offscreen-natural-end');
           sendResponse({ success: true });
           break;
 
