@@ -59,7 +59,7 @@ Use system voices for short reads or on slow machines; use AI voices for long-fo
 
 When a read starts, the popup shows three controls: **Stop** (halts everything immediately), **Play/Pause** (the larger center button), and **Restart** (begins the same text from the top). Audio continues even if you close the popup - reopen and press Stop to halt. The popup's Stop button also halts AI right-click reads.
 
-The **Speed slider** ranges from 0.25× to 4× in 0.25 increments, defaulting to 1×. Changing speed mid-read stops the current read; press the entry-point button again to restart at the new speed.
+The **Speed slider** ranges from 0.25× to 2× in 0.25 increments, defaulting to 1×. Changing speed mid-read stops the current read; press the entry-point button again to restart at the new speed.
 
 A translucent yellow **highlight** follows the spoken sentence on the page during right-click reads, Selection reads, and Full Page reads, and the page auto-scrolls to keep the active sentence in view. Highlighting doesn't apply to typed/pasted text, uploaded files, or the Test Voice button (the text isn't on the page). If the popup closes mid-read, a 60-second watchdog clears any orphaned highlight automatically.
 
@@ -85,7 +85,7 @@ GlowReadTTS doesn't collect any data, doesn't track you, and doesn't require an 
 | Test current voice | Toolbar icon, *Test Voice* |
 | Download AI voices (one time) | Toolbar icon, *Download AI Voices (~95MB)* |
 | Switch voices | Toolbar icon, Voice dropdown |
-| Change speed | Toolbar icon, Speed slider (0.25× - 4×) |
+| Change speed | Toolbar icon, Speed slider (0.25× - 2×) |
 | Pause / resume | Toolbar icon, center playback button |
 | Stop everything | Toolbar icon, *Stop* |
 | Open settings | Toolbar icon, gear icon |
@@ -108,7 +108,7 @@ GlowReadTTS doesn't collect any data, doesn't track you, and doesn't require an 
 
 **Test Voice says "browser voice" when I picked an AI voice.** Reload the extension via `chrome://extensions` (toggle off/on, or click the refresh icon). You're on an outdated build; the latest version branches the Test Voice copy on whether an AI or browser voice is active.
 
-**Audio sounds choppy or distorted.** Most often this is CPU load (close other tabs/apps) or extreme speed settings - 0.25× and 4× both introduce artifacts. The 0.75×-2× range is the sweet spot. For browser voices, switching to a different system voice can also help.
+**Audio sounds choppy or distorted.** Most often this is CPU load (close other tabs/apps) or extreme speed settings - 0.25× and 2× can introduce artifacts depending on the voice. The 0.75×-1.75× range is generally cleanest. For browser voices, switching to a different system voice can also help.
 
 ## Where to get help
 
