@@ -72,7 +72,7 @@ const icons = {
   volume: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
   textCursor: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1M7 22h1a4 4 0 0 1 4-4V6a4 4 0 0 1-4-4H7M12 2v20"/></svg>',
   trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
-  clipboard: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>',
+  help: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>',
   play: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>',
   pause: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>',
   stop: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>',
@@ -279,7 +279,7 @@ async function createUI() {
           <label class="section-label">${icons.textCursor} Paste or Type Text</label>
           <div class="text-controls">
             <button id="btn-clear-text" class="text-btn" title="Clear text">${icons.trash}</button>
-            <button id="btn-paste" class="text-btn" title="Paste from clipboard">${icons.clipboard}</button>
+            <button id="btn-help" class="text-btn" title="Help &amp; Getting Started" aria-label="Help">${icons.help}</button>
           </div>
         </div>
         <textarea
@@ -397,9 +397,9 @@ function setupEventListeners() {
       clearBtn.addEventListener('click', handleClearText);
     }
     
-    const pasteBtn = document.getElementById('btn-paste');
-    if (pasteBtn) {
-      pasteBtn.addEventListener('click', handlePasteText);
+    const helpBtn = document.getElementById('btn-help');
+    if (helpBtn) {
+      helpBtn.addEventListener('click', handleHelpClick);
     }
     
     // Playback controls
@@ -521,28 +521,10 @@ function handleClearText() {
   }
 }
 
-async function handlePasteText() {
-  try {
-    const text = await navigator.clipboard.readText();
-    const textInput = document.getElementById('text-input');
-    
-    if (textInput && text) {
-      textInput.value = text;
-      state.currentText = text;
-      handleTextInput({ target: textInput });
-      
-      const btn = document.getElementById('btn-paste');
-      if (btn) {
-        btn.innerHTML = icons.check;
-        setTimeout(() => {
-          btn.innerHTML = icons.clipboard;
-        }, 1000);
-      }
-    }
-  } catch (error) {
-    console.error('Failed to paste:', error);
-    updateStatus('Failed to paste from clipboard');
-  }
+function handleHelpClick() {
+  const helpUrl = chrome.runtime.getURL('help/getting-started.html');
+  chrome.tabs.create({ url: helpUrl });
+  window.close();
 }
 
 // Playback Control Handlers
