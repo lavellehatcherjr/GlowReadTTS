@@ -1,0 +1,241 @@
+/*
+ * GlowReadTTS Getting Started Styles
+ * Mirrors the popup design tokens: cream paper background, brand orange
+ * accent, Georgia serif for headings, system sans for body.
+ */
+
+:root {
+  /* Surfaces */
+  --surface: #FAFAF7;
+  --surface-card: #FFFFFF;
+
+  /* Text */
+  --text-primary: #1A1815;
+  --text-secondary: #6B6864;
+  --text-tertiary: #8A8680;
+
+  /* Brand accents */
+  --brand-orange: #E8742C;
+  --brand-orange-hover: #D9651D;
+  --brand-orange-fade-1: rgba(232, 116, 44, 0.05);
+  --brand-orange-fade-2: rgba(232, 116, 44, 0.10);
+  --brand-yellow-fade-1: rgba(244, 208, 96, 0.18);
+
+  /* Borders */
+  --border: #E5E2DC;
+  --border-strong: #D4D0C9;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(26, 24, 21, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #1A1815;
+    --surface-card: #262320;
+    --text-primary: #FAFAF7;
+    --text-secondary: #A8A39C;
+    --text-tertiary: #76716A;
+    --border: #3A3530;
+    --border-strong: #4A4540;
+    --brand-orange-fade-1: rgba(232, 116, 44, 0.08);
+    --brand-orange-fade-2: rgba(232, 116, 44, 0.15);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 32px 72px;
+}
+
+/* Header */
+
+.page-header {
+  margin-bottom: 40px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.page-header h1 {
+  font-family: Georgia, "Times New Roman", "Liberation Serif",
+               "DejaVu Serif", serif;
+  font-weight: 700;
+  font-size: 32px;
+  line-height: 1.2;
+  margin: 0 0 16px;
+  color: var(--text-primary);
+}
+
+.page-header .lead {
+  font-size: 17px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Section headings */
+
+section {
+  margin-bottom: 40px;
+}
+
+h2 {
+  font-family: Georgia, "Times New Roman", "Liberation Serif",
+               "DejaVu Serif", serif;
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.3;
+  margin: 0 0 16px;
+  padding-top: 8px;
+  color: var(--text-primary);
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+}
+
+section:first-of-type h2 {
+  border-top: none;
+  padding-top: 0;
+}
+
+p {
+  margin: 0 0 14px;
+  color: var(--text-primary);
+}
+
+/* Lists */
+
+ol, ul {
+  margin: 0 0 14px;
+  padding-left: 28px;
+}
+
+li {
+  margin-bottom: 6px;
+}
+
+li::marker {
+  color: var(--brand-orange);
+}
+
+/* Inline code */
+
+code {
+  font-family: "SF Mono", Monaco, Menlo, Consolas, "Liberation Mono",
+               "Courier New", monospace;
+  font-size: 0.92em;
+  background: var(--brand-orange-fade-1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--text-primary);
+}
+
+/* Strong / emphasis */
+
+strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+em {
+  font-style: italic;
+  color: var(--text-primary);
+}
+
+/* Links */
+
+a {
+  color: var(--brand-orange);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  color: var(--brand-orange-hover);
+}
+
+a:focus-visible {
+  outline: 2px solid var(--brand-orange);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Quick reference table */
+
+.quick-ref {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 14px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.quick-ref th {
+  background: var(--brand-orange-fade-1);
+  border-bottom: 1px solid var(--border-strong);
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.quick-ref td {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+  vertical-align: top;
+}
+
+.quick-ref tr:last-child td {
+  border-bottom: none;
+}
+
+.quick-ref tr:hover td {
+  background: var(--brand-orange-fade-1);
+}
+
+.quick-ref td:first-child {
+  font-weight: 500;
+}
+
+/* Responsive */
+
+@media (max-width: 640px) {
+  .container {
+    padding: 32px 20px 56px;
+  }
+  .page-header h1 {
+    font-size: 26px;
+  }
+  h2 {
+    font-size: 19px;
+  }
+  body {
+    font-size: 15px;
+  }
+}
