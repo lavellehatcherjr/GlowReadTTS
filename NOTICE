@@ -3,32 +3,28 @@ Copyright 2026 Lavelle Hatcher Jr
 
 This product includes the following third-party software:
 
-- pdfjs-dist (v5.5.207)
-  Copyright 2024 Mozilla Foundation
-  Licensed under the Apache License, Version 2.0
-  https://github.com/mozilla/pdf.js
-
 - Kokoro 82M (upstream PyTorch model)
   Copyright 2025 hexgrad
   Licensed under the Apache License, Version 2.0
   https://huggingface.co/hexgrad/Kokoro-82M
 
-- Kokoro 82M ONNX (ONNX-converted distribution, downloaded by this extension)
+- Kokoro 82M ONNX (ONNX-converted distribution, bundled in this extension)
   Copyright 2025 ONNX Community / Xenova (Hugging Face Staff)
   Licensed under the Apache License, Version 2.0
   https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX
+  Bundled files:
+    libs/kokoro-model/onnx/model_quantized.onnx (8-bit quantized model weights, ~92 MB)
+    libs/kokoro-model/voices/*.bin (15 voice embeddings, ~1 MB each)
+    libs/kokoro-model/config.json
+    libs/kokoro-model/tokenizer.json
+    libs/kokoro-model/tokenizer_config.json
 
-- ONNX Runtime Web
+- ONNX Runtime Web (v1.22.0-dev, bundled by kokoro-js@1.2.1)
   Copyright Microsoft Corporation
   Licensed under the MIT License
   https://github.com/microsoft/onnxruntime
 
-- kokoro-js
+- kokoro-js (v1.2.1)
   Copyright 2025 Xenova / Hugging Face
   Licensed under the Apache License, Version 2.0
   https://github.com/hexgrad/kokoro
-
-- Readability.js
-  Copyright Mozilla Foundation (originally Arc90 Inc 2010)
-  Licensed under the Apache License, Version 2.0
-  https://github.com/mozilla/readability
