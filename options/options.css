@@ -15,15 +15,16 @@
   --text-tertiary: #8A8680;
   --text-on-accent: #1A1815;
 
-  /* Brand accents - orange */
-  --brand-orange: #E8742C;
-  --brand-orange-hover: #D9651D;
-  --brand-orange-active: #C25711;
-  --brand-orange-fade-1: rgba(232, 116, 44, 0.05);
-  --brand-orange-fade-2: rgba(232, 116, 44, 0.10);
-  --brand-orange-fade-3: rgba(232, 116, 44, 0.18);
-  --brand-orange-fade-4: rgba(232, 116, 44, 0.30);
-  --brand-orange-fade-5: rgba(232, 116, 44, 0.50);
+  /* Brand accent (variable names are historical — values are TEAL).
+     #2A8B8B / rgb(42, 139, 139). Mirrors popup.css. */
+  --brand-orange: #2A8B8B;
+  --brand-orange-hover: #237575;
+  --brand-orange-active: #1F6E6E;
+  --brand-orange-fade-1: rgba(42, 139, 139, 0.05);
+  --brand-orange-fade-2: rgba(42, 139, 139, 0.10);
+  --brand-orange-fade-3: rgba(42, 139, 139, 0.18);
+  --brand-orange-fade-4: rgba(42, 139, 139, 0.30);
+  --brand-orange-fade-5: rgba(42, 139, 139, 0.50);
 
   /* Brand accents - yellow */
   --brand-yellow: #F4D060;
@@ -148,77 +149,6 @@ body {
   font-weight: 500;
 }
 
-.setting-group input[type="checkbox"] {
-  margin-right: 8px;
-}
-
-.api-setup p {
-  color: var(--text-secondary);
-  margin-bottom: 16px;
-}
-
-.input-group {
-  display: flex;
-  gap: 12px;
-}
-
-.input-group input {
-  flex: 1;
-  padding: 10px 12px;
-  background: var(--surface-input);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 14px;
-}
-
-.input-group input:focus {
-  outline: none;
-  border-color: var(--brand-orange);
-  box-shadow: 0 0 0 3px var(--brand-orange-fade-3);
-}
-
-.input-group button {
-  padding: 10px 20px;
-  background: var(--brand-orange);
-  color: var(--text-on-accent);
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.input-group button:hover {
-  background: var(--brand-orange-hover);
-}
-
-#api-status {
-  margin-top: 12px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  display: none;
-}
-
-#api-status.success {
-  background: rgba(16, 185, 129, 0.12);
-  color: var(--success);
-  border: 1px solid rgba(16, 185, 129, 0.30);
-}
-
-#api-status.error {
-  background: rgba(239, 68, 68, 0.12);
-  color: var(--error);
-  border: 1px solid rgba(239, 68, 68, 0.30);
-}
-
-#api-status.info {
-  background: var(--brand-orange-fade-2);
-  color: var(--brand-orange);
-  border: 1px solid var(--brand-orange-fade-4);
-}
-
 select {
   width: 100%;
   padding: 10px 12px;
@@ -287,54 +217,9 @@ select optgroup {
   border: 1px solid var(--brand-orange-fade-4);
 }
 
-.cache-status {
-  color: var(--text-secondary);
-  margin-bottom: 12px;
-  font-size: 13px;
-}
-
-.btn-clear-cache {
-  padding: 10px 16px;
-  background: var(--surface-card-alt);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-clear-cache:hover:not(:disabled) {
-  background: var(--surface-card);
-  border-color: var(--border-strong);
-}
-
-.btn-clear-cache:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .about-info p {
   margin-bottom: 8px;
   color: var(--text-secondary);
-}
-
-.about-info .links {
-  margin-top: 16px;
-  display: flex;
-  gap: 16px;
-}
-
-.about-info .links a {
-  color: var(--brand-orange);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s;
-}
-
-.about-info .links a:hover {
-  color: var(--brand-orange-hover);
-  text-decoration: underline;
 }
 
 /* Scrollbar */
@@ -360,4 +245,31 @@ select optgroup {
   font-size: 12px;
   color: var(--text-tertiary);
   font-style: italic;
+}
+
+/* Toggle (checkbox + adjacent label text) for boolean settings. */
+
+.toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 0;
+}
+
+.toggle-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--brand-orange);
+  flex-shrink: 0;
+}
+
+.toggle-label .toggle-text {
+  font-size: 14px;
+  line-height: 1.4;
 }
