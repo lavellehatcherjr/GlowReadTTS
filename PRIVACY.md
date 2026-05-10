@@ -2,7 +2,7 @@
 
 # Privacy Policy
 
-**Last Updated:** May 7, 2026
+**Last Updated:** May 10, 2026
 
 Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS browser extension ("Software"). This Privacy Policy describes how we handle information when you use the Software. By using the Software, you agree to the practices described in this Privacy Policy.
 
@@ -11,7 +11,7 @@ Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS 
 **1.1** We do not collect, store, transmit, sell, rent, lease, or process any personal information or personally identifiable information (PII). Specifically:
 
 - **(a)** We do not collect your name, email address, phone number, mailing address, or any identifying information.
-- **(b)** We do not collect, transmit, or store any text you process through the Software, including text you type, paste, select, or extract from webpages or documents.
+- **(b)** We do not collect, transmit, or store any text you process through the Software, including text you type, paste, or select on a webpage.
 - **(c)** We do not collect browsing history, URLs visited, webpage content, or any browsing activity data.
 - **(d)** We do not use cookies, web beacons, analytics services, tracking pixels, fingerprinting, or any tracking technology.
 - **(e)** We do not collect device identifiers, hardware information, IP addresses, geolocation data, or operating system information.
@@ -23,9 +23,7 @@ Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS 
 
 **2.1** All text-to-speech processing occurs entirely and exclusively on your local device:
 
-- **(a)** Browser TTS: Text is processed by your operating system's built-in speech synthesis engine via the Chrome browser's `chrome.tts` API. This processing is handled by Chrome and your operating system, not by the Software's servers (the Software has no servers).
-- **(b)** AI Voice Synthesis: Text is processed by a neural network model running locally on your device via WebAssembly (ONNX Runtime Web). No text is transmitted to any external server for AI voice processing.
-- **(c)** PDF Text Extraction: PDF files are processed locally by pdfjs-dist running in the extension's service worker. PDF content never leaves your device.
+- **(a)** AI Voice Synthesis: Text is processed by a neural network model (Kokoro-82M ONNX) running locally on your device via WebAssembly (ONNX Runtime Web). The model weights and voice embeddings are bundled inside the extension package. No text is transmitted to any external server for voice synthesis.
 
 **2.2** The Software has no backend servers, no cloud infrastructure, no databases, and no server-side code. There is no server to which data could be transmitted.
 
@@ -34,45 +32,38 @@ Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS 
 **3.1** The Software stores the following data locally using Chrome's built-in storage APIs. All data listed below is stored exclusively on your device and is automatically and permanently deleted when the Software is uninstalled:
 
 - **(a)** Voice and speed preferences (`chrome.storage.sync`) - synced across your Chrome devices if Chrome sync is enabled (this is a Chrome feature, not controlled by the Software).
-- **(b)** AI voice installation state (`chrome.storage.local`) - a boolean flag indicating whether the AI voice model has been downloaded.
-- **(c)** EULA/Privacy Policy acceptance state (`chrome.storage.local`) - records that you accepted these terms, the version accepted, and the date of acceptance.
-- **(d)** Cached AI voice model files (Cache API) - approximately 95MB of neural network model weights and voice data. These are inert data files that cannot execute code.
-- **(e)** Session text for playback continuity (`sessionStorage`) - temporarily stores the most recently read text. This is automatically cleared when the popup is closed.
-- **(f)** Transient playback state flag (`chrome.storage.session`) - a single boolean (`playbackActive`) used internally to surface a "Reading in progress" banner when the popup reopens during an active read. Cleared when audio ends or is stopped, and automatically cleared on browser restart. Contains no user content or identifying information.
+- **(b)** EULA/Privacy Policy acceptance state (`chrome.storage.local`) - records that you accepted these terms, the version accepted, and the date of acceptance.
+- **(c)** Selection-prewarm preference (`chrome.storage.local`) - a single boolean (`prewarmOnSelection`) that controls whether the AI voice model preloads when you select text on a page. Stored only on this device - never syncs to any server.
+- **(d)** Session text for playback continuity (`sessionStorage`) - temporarily stores the most recently read text. This is automatically cleared when the popup is closed.
+- **(e)** Transient playback state flag (`chrome.storage.session`) - a single boolean (`playbackActive`) used internally to surface a "Reading in progress" banner when the popup reopens during an active read. Cleared when audio ends or is stopped, and automatically cleared on browser restart. Contains no user content or identifying information.
 
 **3.2** No data stored by the Software is accessible to other extensions, websites, or applications. Chrome's storage APIs are sandboxed to the extension's unique origin.
 
 ## Section 4: Network Requests
 
-**4.1** The Software makes exactly one type of network request, only when explicitly initiated by the user:
+**4.1** The Software makes NO network requests during normal operation. All processing - including AI voice synthesis using the bundled Kokoro neural network - happens locally on your device.
 
-- **(a)** Downloading AI voice model files from huggingface.co when the user clicks the "Download AI Voices" button. This download consists of pre-trained neural network model weights and voice data files.
+**4.2** The AI voice model and voice embeddings are bundled inside the extension package at install time. No runtime download from huggingface.co or any other server is required.
 
-**4.2** This download is a one-way data transfer (server → your device). No user data, text, personal information, device information, or any other data is included in the request beyond the standard HTTP headers automatically sent by the browser.
-
-**4.3** After the initial download, AI voices work completely offline with no further network requests.
-
-**4.4** The Software makes no other network requests. It does not contact any analytics services, advertising networks, crash reporting services, update servers, or any other external endpoints.
+**4.3** The Software does not contact any analytics services, advertising networks, crash reporting services, update servers, or any other external endpoints.
 
 ## Section 5: Permissions Justification
 
 **5.1** The Software requests the following Chrome browser permissions. Each permission is used solely for the purpose described below:
 
 - **(a)** "storage" - to save your voice and speed preferences locally on your device.
-- **(b)** "activeTab" - to read text content from the currently active browser tab when you explicitly request it by clicking "Selection" or "Full Page" in the Software's interface.
+- **(b)** "activeTab" - to read selected text from the currently active browser tab when you explicitly request a right-click read via the "Read with GlowReadTTS" menu item.
 - **(c)** "contextMenus" - to add the "Read with GlowReadTTS" option to the right-click context menu.
-- **(d)** "tts" - to access the browser's built-in text-to-speech engine for voice synthesis.
-- **(e)** "scripting" - to inject the content script that enables text extraction and highlight-as-you-read functionality on webpages.
-- **(f)** "<all_urls>" host permission - required for the content script to operate on any webpage the user visits, enabling text selection reading and highlight-as-you-read on all websites. This permission does NOT grant the Software automatic access to page content; content is only accessed when the user explicitly triggers a reading action.
-- **(g)** "https://huggingface.co/*" host permission - required solely for downloading the AI voice model files from Hugging Face's servers.
+- **(d)** "notifications" - to surface a brief "Preparing audio…" toast on the first AI read of a session.
+- **(e)** "offscreen" - to host the audio playback element and the on-device neural inference Web Worker in a document that survives popup close.
+- **(f)** "scripting" - to inject the highlight-as-you-read content script on tabs that don't already have it loaded (e.g., tabs that were open before the Software was installed or reloaded).
+- **(g)** "<all_urls>" host permission - required for the content script to operate on any webpage the user visits, so that the right-click "Read with GlowReadTTS" action and its highlight-as-you-read functionality work on all websites. This permission does NOT grant the Software automatic access to page content; selected text is only accessed when the user explicitly triggers a reading action via the right-click menu.
 
 **5.2** No permission is used to monitor, collect, log, or transmit browsing activity, page content, user data, or any other information.
 
 ## Section 6: Third-Party Services
 
-**6.1** Hugging Face (huggingface.co): The Software downloads AI model files from Hugging Face's content delivery network. This download is subject to Hugging Face's terms of service and privacy policy. The Developer is not affiliated with Hugging Face and makes no representations regarding Hugging Face's data practices during the download.
-
-**6.2** Google Chrome APIs: The Software uses Chrome's built-in APIs (`chrome.tts`, `chrome.storage`, `chrome.contextMenus`, `chrome.scripting`). These APIs are provided by Google and subject to Google's terms of service and privacy policy. The Developer is not responsible for how Chrome or Google handles data processed through these APIs.
+**6.1** Google Chrome APIs: The Software uses Chrome's built-in APIs (`chrome.storage`, `chrome.contextMenus`, `chrome.scripting`, `chrome.offscreen`, `chrome.notifications`). These APIs are provided by Google and subject to Google's terms of service and privacy policy. The Developer is not responsible for how Chrome or Google handles data processed through these APIs. The Software does NOT use Chrome's `chrome.tts` API and does NOT send any text to remote / network speech engines.
 
 ## Section 7: Children's Privacy
 
@@ -109,11 +100,9 @@ Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS 
 
 ## Section 11: Data Retention and Deletion
 
-**11.1** The Software does not retain any user data beyond the current browser session, with the exception of the locally stored preferences and cached model files described in Section 3.
+**11.1** The Software does not retain any user data beyond the current browser session, with the exception of the locally stored preferences described in Section 3.
 
 **11.2** All data stored by the Software is automatically and permanently deleted when the Software is uninstalled from Chrome.
-
-**11.3** You may manually clear the AI voice model cache at any time through the Software's Settings page using the "Clear AI Voice Cache" option.
 
 ## Section 12: Changes to This Privacy Policy
 
