@@ -7,6 +7,9 @@
 console.log('[GlowReadTTS] Service worker starting...');
 
 // Bumping this constant forces all users to re-accept the EULA on next launch.
+// MUST stay in lockstep with EULA_VERSION in eula/eula.js and CURRENT_EULA_VERSION
+// in popup/popup.js — when these drift, the service worker treats freshly-
+// accepted EULAs as not-accepted and opens the EULA tab on every right-click.
 const CURRENT_EULA_VERSION = '1.2';
 
 const OFFSCREEN_DOCUMENT_PATH = 'offscreen/offscreen.html';
