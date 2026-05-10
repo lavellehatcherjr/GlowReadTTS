@@ -19,13 +19,12 @@
         <div class="setting-group">
           <label>Default Voice</label>
           <select id="default-voice">
-            <option value="default">System Default</option>
           </select>
           <p class="setting-help">
-            AI voices (American and British English) are available in the popup after downloading them. To select an AI voice, click the GlowReadTTS toolbar icon and use the Voice dropdown there.
+            AI voices run entirely on your device — no audio or text is sent to a server.
           </p>
         </div>
-        
+
         <div class="setting-group">
           <label>Default Speed</label>
           <div class="speed-control">
@@ -34,12 +33,17 @@
           </div>
         </div>
       </section>
-      
+
       <section class="settings-section">
-        <h2>AI Voice Cache</h2>
+        <h2>Performance</h2>
         <div class="setting-group">
-          <p id="ai-voices-cache-status" class="cache-status">Checking...</p>
-          <button id="btn-clear-ai-voices-cache" class="btn-clear-cache">Clear AI Voice Cache (~95MB)</button>
+          <label class="toggle-label">
+            <input type="checkbox" id="prewarm-toggle" />
+            <span class="toggle-text">Pre-warm AI voice on text selection</span>
+          </label>
+          <p class="setting-help">
+            When enabled (recommended), the AI voice model loads in the background as soon as you select text on a page, so the first right-click read of a session feels fast (~1–2&nbsp;seconds). Costs ~95&nbsp;MB of RAM after your first selection. Turn off to keep memory use minimal (~5–10&nbsp;MB) until you explicitly invoke a read — the trade-off is a one-time ~3–6&nbsp;second wait on the first read of each browser session.
+          </p>
         </div>
       </section>
 
