@@ -15,15 +15,17 @@
   --text-tertiary: #8A8680;
   --text-on-accent: #1A1815;
 
-  /* Brand accents - orange */
-  --brand-orange: #E8742C;
-  --brand-orange-hover: #D9651D;
-  --brand-orange-active: #C25711;
-  --brand-orange-fade-1: rgba(232, 116, 44, 0.05);
-  --brand-orange-fade-2: rgba(232, 116, 44, 0.10);
-  --brand-orange-fade-3: rgba(232, 116, 44, 0.18);
-  --brand-orange-fade-4: rgba(232, 116, 44, 0.30);
-  --brand-orange-fade-5: rgba(232, 116, 44, 0.50);
+  /* Brand accent (variable names are historical — values are TEAL).
+     #2A8B8B / rgb(42, 139, 139). Pairs with the warm cream surfaces
+     and brand-yellow highlight as a complementary cool accent. */
+  --brand-orange: #2A8B8B;
+  --brand-orange-hover: #237575;
+  --brand-orange-active: #1F6E6E;
+  --brand-orange-fade-1: rgba(42, 139, 139, 0.05);
+  --brand-orange-fade-2: rgba(42, 139, 139, 0.10);
+  --brand-orange-fade-3: rgba(42, 139, 139, 0.18);
+  --brand-orange-fade-4: rgba(42, 139, 139, 0.30);
+  --brand-orange-fade-5: rgba(42, 139, 139, 0.50);
 
   /* Brand accents - yellow */
   --brand-yellow: #F4D060;
@@ -473,66 +475,6 @@ body {
   background: var(--brand-orange-fade-2);
   border-radius: 6px;
   border: 1px solid var(--brand-orange-fade-4);
-}
-
-/* AI Voices Section */
-.ai-voices-section {
-  background: var(--surface-card-alt);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 16px;
-}
-
-.ai-voices-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.ai-voices-description {
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.ai-voices-status {
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.ai-voices-progress {
-  height: 6px;
-  background: var(--border);
-  border-radius: 3px;
-  overflow: hidden;
-  margin-top: 8px;
-}
-
-.ai-voices-progress-bar {
-  height: 100%;
-  background: var(--success);
-  width: 0%;
-  transition: width 0.3s ease;
-  border-radius: 3px;
-}
-
-.ai-voices-progress-text {
-  font-size: 10px;
-  color: var(--text-secondary);
-  display: block;
-  text-align: center;
-  margin-top: 4px;
-}
-
-.ai-voices-progress.hidden,
-.ai-voices-progress-text.hidden {
-  display: none;
 }
 
 /* SVG icon alignment (Lucide inline icons) */
