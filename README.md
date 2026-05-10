@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="assets/icon-256.png" alt="GlowReadTTS" width="200" height="200">
+  <img src="assets/icon.svg" alt="GlowReadTTS" width="200" height="200">
 </p>
 
 # GlowReadTTS
 
-A Chrome extension that reads webpages, PDFs, and text files aloud using your browser's built-in TTS voices or downloadable on-device AI voices. Fully offline-capable, with no accounts, API keys, or data collection.
+A Chrome extension that reads selected webpage text and pasted/typed text aloud using bundled on-device AI voices. Fully offline-capable, with no accounts, API keys, or data collection.
 
 **New to GlowReadTTS?** Read the [Getting Started guide](GETTING_STARTED.md) for installation, setup, and feature walkthroughs.
 
@@ -14,18 +14,14 @@ A Chrome extension that reads webpages, PDFs, and text files aloud using your br
 
 ## Features
 
-- **Browser TTS Voices** - Use your system's built-in text-to-speech voices, completely free and offline
-- **AI Voices** - Download once (~95MB), use forever. Natural-sounding offline AI voices, no API keys needed
+- **AI Voices** - 15 bundled on-device neural voices (American and British English). ~96MB ships with the extension; no API keys, no downloads, no network calls.
 - **Text Input** - Paste or type any text and hear it read aloud
-- **Selection Reading** - Highlight text on any webpage and read it aloud with highlight-as-you-read
-- **Full Page Reading** - Read an entire webpage aloud with sentence-by-sentence highlighting
-- **PDF Support** - Upload a PDF and extract text for reading aloud
-- **File Upload** - Upload .txt, .md, .json, or .csv files to read aloud
-- **Right-Click Menu** - Select text, right-click, choose "Read with GlowReadTTS"
-- **Speed Control** - Adjust reading speed from 0.25x to 4x
-- **Voice Selection** - Choose from browser voices or downloaded AI voices
-- **Privacy First** - All processing happens locally. No data collection. No analytics. No accounts.
-- **Offline Mode** - Browser TTS and AI voices both work without internet
+- **Right-Click Reading** - Select text on any webpage, right-click, choose "Read with GlowReadTTS" - with highlight-as-you-read on the page
+- **On-Page Stop Button** - A floating Stop button appears top-right of the page during right-click reads, so you can halt without opening the popup
+- **Speed Control** - Adjust reading speed from 0.25x to 2x
+- **Performance Toggle** - Optional selection-driven pre-warm so the first right-click read of a session starts in ~1–2 s (default ON; switch off in Settings to keep idle RAM minimal)
+- **Privacy First** - 100% local processing. No data collection, no analytics, no accounts, no network calls.
+- **Offline Mode** - Works fully offline (the AI model is bundled in the extension package)
 
 ## Installation
 
@@ -41,22 +37,20 @@ A Chrome extension that reads webpages, PDFs, and text files aloud using your br
 ## Usage
 
 1. **Type or paste text** into the text box and click "Read Text"
-2. **Select text** on any page → click the GlowReadTTS icon → click "Selection"
-3. **Read a full page** → click the icon → click "Full Page"
-4. **Upload a file** → click "Upload" → choose a .txt, .pdf, or other supported file
-5. **Right-click** selected text → "Read with GlowReadTTS"
+2. **Right-click** selected text on any page → "Read with GlowReadTTS" (the spoken sentence is highlighted on the page)
 
 ## AI Voices
 
-GlowReadTTS includes optional AI-powered voices that run entirely on your device. These voices:
+GlowReadTTS uses AI-powered voices that run entirely on your device. These voices:
 
-- Sound significantly more natural than browser TTS
-- Download from Hugging Face on first use (~95MB), then run entirely offline
+- Sound significantly more natural than typical OS speech engines
+- Are bundled with the extension (~96MB) - no runtime download, no network calls
 - Require no API keys, accounts, or ongoing costs
-- Supports American and British English with 15 curated AI voices
-- Available from the popup and from the right-click context menu (previously the right-click flow fell back to system voice)
+- Support American and British English with 15 curated AI voices
+- Stream sentence-by-sentence so audio starts playing within ~1–2 seconds of your click on capable hardware
+- Available from the popup and from the right-click context menu
 
-To enable: open GlowReadTTS → click "Download AI Voices" → wait for download → select an AI voice from the dropdown.
+To use: open GlowReadTTS → pick a voice from the dropdown → click play.
 
 ## Privacy & Security
 
@@ -72,7 +66,7 @@ To enable: open GlowReadTTS → click "Download AI Voices" → wait for download
 
 For the full list of third-party libraries and their licenses, see [NOTICE](NOTICE).
 
-## Legal
+## License & Policies
 
 - **License:** Apache License 2.0 - see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 - **Privacy Policy:** [PRIVACY.md](PRIVACY.md)
