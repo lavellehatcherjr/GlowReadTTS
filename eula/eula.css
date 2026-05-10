@@ -15,15 +15,16 @@
   --text-tertiary: #8A8680;
   --text-on-accent: #1A1815;
 
-  /* Brand accents - orange */
-  --brand-orange: #E8742C;
-  --brand-orange-hover: #D9651D;
-  --brand-orange-active: #C25711;
-  --brand-orange-fade-1: rgba(232, 116, 44, 0.05);
-  --brand-orange-fade-2: rgba(232, 116, 44, 0.10);
-  --brand-orange-fade-3: rgba(232, 116, 44, 0.18);
-  --brand-orange-fade-4: rgba(232, 116, 44, 0.30);
-  --brand-orange-fade-5: rgba(232, 116, 44, 0.50);
+  /* Brand accent (variable names are historical — values are TEAL).
+     #2A8B8B / rgb(42, 139, 139). Mirrors popup.css. */
+  --brand-orange: #2A8B8B;
+  --brand-orange-hover: #237575;
+  --brand-orange-active: #1F6E6E;
+  --brand-orange-fade-1: rgba(42, 139, 139, 0.05);
+  --brand-orange-fade-2: rgba(42, 139, 139, 0.10);
+  --brand-orange-fade-3: rgba(42, 139, 139, 0.18);
+  --brand-orange-fade-4: rgba(42, 139, 139, 0.30);
+  --brand-orange-fade-5: rgba(42, 139, 139, 0.50);
 
   /* Brand accents - yellow */
   --brand-yellow: #F4D060;
