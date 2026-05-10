@@ -135,6 +135,9 @@ try {
 }
 
 // Bumping this constant forces all users to re-accept the EULA on next launch.
+// MUST stay in lockstep with EULA_VERSION in eula/eula.js and CURRENT_EULA_VERSION
+// in background/service-worker.js — when these drift, the popup treats a
+// freshly-accepted EULA as not-accepted and shows the EULA gate forever.
 const CURRENT_EULA_VERSION = '1.2';
 
 async function initializePopup() {
