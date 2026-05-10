@@ -2,98 +2,101 @@
  * GlowReadTTS Options Page
  */
 
-const AI_CACHE_KEYS = ['transformers-cache', 'kokoro-voices'];
-
 document.addEventListener('DOMContentLoaded', initOptions);
 
 async function initOptions() {
   console.log('[GlowReadTTS Options] Initializing...');
 
-  loadSettings();
-  loadVoices();
-  refreshCacheStatus();
+  // Order matters: populate the voice dropdown completely before applying
+  // the saved value. Setting <select>.value to an option that doesn't yet
+  // exist silently falls back to the first option, and a subsequent save
+  // would persist that fallback as the user's "new" voice.
+  await populateAIVoices();
+  await applySavedVoice();
+  await loadSpeedSetting();
+  await loadPrewarmSetting();
 
   document.getElementById('speed-slider')?.addEventListener('input', updateSpeed);
   document.getElementById('default-voice')?.addEventListener('change', saveSettings);
-  document.getElementById('btn-clear-ai-voices-cache')?.addEventListener('click', clearAIVoiceCache);
+  document.getElementById('prewarm-toggle')?.addEventListener('change', savePrewarmSetting);
 }
 
-async function loadSettings() {
-  const settings = await chrome.storage.sync.get(['settings']);
-  if (settings.settings) {
-    const s = settings.settings;
-
-    if (s.voice) {
-      document.getElementById('default-voice').value = s.voice;
-    }
-
-    if (s.speed) {
-      document.getElementById('speed-slider').value = s.speed;
-      document.getElementById('speed-value').textContent = `${s.speed}x`;
-    }
-  }
+// Selection-prewarm toggle. Stored as a flat boolean key in
+// chrome.storage.local (NOT sync) — this is a per-device performance
+// preference and shouldn't follow the user across machines with
+// different RAM budgets. Default true (matches the default written by
+// service-worker.js's onInstalled handler).
+async function loadPrewarmSetting() {
+  const stored = await chrome.storage.local.get('prewarmOnSelection');
+  const enabled = (typeof stored.prewarmOnSelection === 'boolean')
+    ? stored.prewarmOnSelection
+    : true;
+  const checkbox = document.getElementById('prewarm-toggle');
+  if (checkbox) checkbox.checked = enabled;
 }
 
-async function loadVoices() {
-  chrome.tts.getVoices((voices) => {
+async function savePrewarmSetting(e) {
+  const enabled = !!e.target.checked;
+  await chrome.storage.local.set({ prewarmOnSelection: enabled });
+  console.log('[GlowReadTTS Options] prewarmOnSelection =', enabled);
+}
+
+// Add the bundled Kokoro AI voices, mirroring the popup's two optgroups.
+// AI-only since browser TTS was removed; the dropdown's first option is
+// the System Default placeholder kept as a migration-safe value for
+// pre-AI-only saves (applySavedVoice falls back to it if the saved id
+// is no longer in the catalog).
+async function populateAIVoices() {
+  try {
+    const mod = await import(chrome.runtime.getURL('libs/kokoro/voices-catalog.js'));
     const select = document.getElementById('default-voice');
+    if (!select) return;
 
-    const browserGroup = document.createElement('optgroup');
-    browserGroup.label = 'Browser Voices';
+    const buildOptgroup = (langCode, label) => {
+      const group = document.createElement('optgroup');
+      group.label = label;
+      mod.voicesByLanguage(langCode).forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = `ai:${v.id}`;
+        opt.textContent = `${v.displayName} - ${v.tagline}`;
+        group.appendChild(opt);
+      });
+      return group;
+    };
 
-    voices.forEach(voice => {
-      const option = document.createElement('option');
-      option.value = voice.voiceName;
-      option.textContent = `${voice.voiceName} (${voice.lang || 'en'})`;
-      browserGroup.appendChild(option);
-    });
-
-    select.appendChild(browserGroup);
-  });
-}
-
-async function refreshCacheStatus() {
-  const statusEl = document.getElementById('ai-voices-cache-status');
-  if (!statusEl) return;
-  try {
-    let totalEntries = 0;
-    for (const key of AI_CACHE_KEYS) {
-      const cache = await caches.open(key);
-      const keys = await cache.keys();
-      totalEntries += keys.length;
-    }
-    if (totalEntries === 0) {
-      statusEl.textContent = 'AI voices not installed.';
-    } else {
-      statusEl.textContent = `AI voice files cached: ${totalEntries} (cleared on demand).`;
-    }
+    select.appendChild(buildOptgroup('a', '🇺🇸 American English'));
+    select.appendChild(buildOptgroup('b', '🇬🇧 British English'));
   } catch (e) {
-    statusEl.textContent = 'Cache status unavailable.';
+    console.error('[GlowReadTTS Options] Failed to load AI voice catalog:', e);
   }
 }
 
-async function clearAIVoiceCache() {
-  const statusEl = document.getElementById('ai-voices-cache-status');
-  const btn = document.getElementById('btn-clear-ai-voices-cache');
-
-  // Confirm before deleting ~95MB of cached files.
-  const confirmed = window.confirm(
-    'Clear the AI voice cache? This will free approximately 95MB but you will need to download the AI voices again to use them.'
-  );
-  if (!confirmed) return;
-
-  if (btn) btn.disabled = true;
-  try {
-    for (const key of AI_CACHE_KEYS) {
-      await caches.delete(key);
-    }
-    await chrome.storage.local.remove('ai_voices_installed');
-    if (statusEl) statusEl.textContent = 'AI voices not installed.';
-  } catch (e) {
-    if (statusEl) statusEl.textContent = 'Failed to clear cache: ' + (e.message || 'unknown');
-  } finally {
-    if (btn) btn.disabled = false;
+async function applySavedVoice() {
+  const select = document.getElementById('default-voice');
+  if (!select) return;
+  const stored = await chrome.storage.sync.get(['voice', 'settings']);
+  const saved = stored.voice || (stored.settings && stored.settings.voice);
+  if (!saved) return;
+  const matches = Array.from(select.options).some(opt => opt.value === saved);
+  if (matches) {
+    select.value = saved;
   }
+  // If saved doesn't match (e.g. a removed voice, or a stale browser-TTS
+  // voice from before the AI-only migration), leave the dropdown at its
+  // built-in default. saveSettings only fires from explicit user input,
+  // so we won't auto-persist that fallback.
+}
+
+async function loadSpeedSetting() {
+  const stored = await chrome.storage.sync.get(['speed', 'settings']);
+  const raw = stored.speed
+    ?? (stored.settings && stored.settings.speed)
+    ?? 1.0;
+  const speed = Math.max(0.25, Math.min(2.0, parseFloat(raw) || 1.0));
+  const slider = document.getElementById('speed-slider');
+  const value = document.getElementById('speed-value');
+  if (slider) slider.value = speed;
+  if (value) value.textContent = `${speed}x`;
 }
 
 function updateSpeed(e) {
