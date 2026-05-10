@@ -7,7 +7,7 @@
 console.log('[GlowReadTTS] Service worker starting...');
 
 // Bumping this constant forces all users to re-accept the EULA on next launch.
-const CURRENT_EULA_VERSION = '1.1';
+const CURRENT_EULA_VERSION = '1.2';
 
 const OFFSCREEN_DOCUMENT_PATH = 'offscreen/offscreen.html';
 
