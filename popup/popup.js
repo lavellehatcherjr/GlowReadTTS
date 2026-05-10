@@ -4,14 +4,17 @@
 
 console.log('[GlowReadTTS] Popup script starting...');
 
+// Default voice when storage is empty or holds a stale browser-TTS voice.
+// Mirrors background/service-worker.js's default for the right-click path.
+const DEFAULT_AI_VOICE = 'ai:af_heart';
+
 // Global state
 const state = {
   isPlaying: false,
   isPaused: false,
-  currentVoice: 'default',
+  currentVoice: DEFAULT_AI_VOICE,
   currentSpeed: 1.0,
   currentText: '',
-  selectedButton: null,
   shouldHighlight: false  // true when reading page/selection text (enables highlight-as-you-read)
 };
 
@@ -37,15 +40,60 @@ async function notifyPlaybackEnded(reason) {
   }
 }
 
-// Lazily-loaded AI voice manager (KokoroManager singleton)
-let aiVoiceManager = null;
-async function getAIVoiceManager() {
-  if (!aiVoiceManager) {
-    const mod = await import(chrome.runtime.getURL('libs/kokoro/kokoro-manager.js'));
-    const KokoroManager = mod.default;
-    aiVoiceManager = new KokoroManager();
+// Subscribe to chrome.storage.session changes so the popup learns when an
+// offscreen-owned AI read (the popup's typed-text reads, page reads,
+// selection reads, AND right-click reads all live in the offscreen) finishes
+// or is stopped. The SW clears `playbackActive` on OFFSCREEN_ENDED, which
+// fires both on natural stream-end AND on user-stop. Without this listener
+// the popup's button + status would stay frozen on "Reading..." until the
+// user re-clicks something.
+function setupPlaybackStateSync() {
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'session') return;
+      if (!changes.playbackActive) return;
+      const isActive = changes.playbackActive.newValue === true;
+      if (isActive) return; // start events update the UI directly elsewhere
+      // playbackActive was cleared. Mirror the natural-end UI cleanup that
+      // the popup-owned browser-TTS path already runs from its onEvent
+      // 'end' handler. Idempotent: state mutators are safe to repeat.
+      handleRemotePlaybackEnded();
+    });
+  } catch (e) {
+    // chrome.storage.onChanged may be unavailable (very old Chrome).
+    // Without it the popup UI would just lag a bit when an offscreen read
+    // ends; the next button click resets state.
   }
-  return aiVoiceManager;
+}
+
+function handleRemotePlaybackEnded() {
+  // Banner reflects "is something reading right now"; hide it.
+  const banner = document.getElementById('stop-reading-banner');
+  if (banner) banner.classList.remove('visible');
+
+  if (!state.isPlaying) return;
+
+  state.isPlaying = false;
+  state.isPaused = false;
+  updatePlayButton('stopped');
+  updateStatus('Finished');
+  if (state.shouldHighlight) {
+    sendHighlightMessage('STOP_HIGHLIGHT');
+    state.shouldHighlight = false;
+  }
+  setTimeout(() => hidePlaybackControls(), 2000);
+}
+
+// Send a fire-and-forget action to the offscreen document (used for stop /
+// pause / resume of right-click AI reads that the popup doesn't directly own).
+// If the offscreen doc doesn't exist yet, chrome.runtime.lastError is set
+// inside the callback and we ignore it.
+function forwardOffscreenAction(action) {
+  try {
+    chrome.runtime.sendMessage({ target: 'offscreen', action }, () => {
+      void chrome.runtime.lastError;
+    });
+  } catch (e) { /* offscreen unavailable; safe to ignore */ }
 }
 
 // Lazily-loaded voice catalog (single source of truth for shipped Kokoro voices).
@@ -55,15 +103,6 @@ async function getVoiceCatalog() {
     voiceCatalog = await import(chrome.runtime.getURL('libs/kokoro/voices-catalog.js'));
   }
   return voiceCatalog;
-}
-
-// Toggle visibility of both AI voice optgroups (American + British) together.
-function setAIVoicesVisible(visible) {
-  const value = visible ? 'block' : 'none';
-  const american = document.getElementById('ai-voices-american');
-  const british = document.getElementById('ai-voices-british');
-  if (american) american.style.display = value;
-  if (british) british.style.display = value;
 }
 
 // Inline Lucide SVG icons (MIT) - keeps UI consistent across OS emoji renderers.
@@ -77,14 +116,8 @@ const icons = {
   pause: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>',
   stop: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>',
   restart: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>',
-  selection: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14M5 21h14M12 8v8M8 12h8"/></svg>',
-  fileText: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/></svg>',
-  upload: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
   mic: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>',
-  settings: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
-  sparkles: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4"/></svg>',
-  download: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
-  check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+  settings: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>'
 };
 
 // Wrap everything in try-catch to see errors
@@ -125,8 +158,13 @@ async function initializePopup() {
     await createUI();
     await createStopReadingBanner();
     setupEventListeners();
+    setupPlaybackStateSync();
     await loadSavedSettings();
-    loadAvailableVoices();
+
+    // No prewarm here. The extension is fully on-demand — the AI voice
+    // model loads only when the user explicitly invokes a read (Read
+    // Text / Test Voice / right-click), trading a 3–6 s cold-load on
+    // the first read of a session for ~95 MB less idle RAM.
 
     console.log('[GlowReadTTS] Initialization complete');
   } catch (error) {
@@ -167,6 +205,15 @@ async function createStopReadingBanner() {
     const result = await chrome.storage.session.get('playbackActive');
     if (result.playbackActive) {
       banner.classList.add('visible');
+      // Reflect the cross-context read in popup state so the play/pause
+      // button is reachable. Without this, the user could only Stop a
+      // right-click read from the popup. handlePlayPause forwards
+      // OFFSCREEN_PAUSE / OFFSCREEN_RESUME, which works regardless of
+      // which context started the read.
+      state.isPlaying = true;
+      state.isPaused = false;
+      updatePlayButton('playing');
+      showPlaybackControls();
     }
   } catch (e) {
     // chrome.storage.session unavailable; banner stays hidden.
@@ -194,7 +241,7 @@ function renderEulaGate() {
 
   const btn = document.createElement('button');
   btn.textContent = 'Review Terms';
-  btn.style.cssText = 'padding: 10px 20px; background: #E8742C; color: #1A1815; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;';
+  btn.style.cssText = 'padding: 10px 20px; background: #2A8B8B; color: #1A1815; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;';
   btn.addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('eula/eula.html') });
     window.close();
@@ -230,7 +277,7 @@ function showError(error) {
   msg.textContent = error.message;
 
   const btn = document.createElement('button');
-  btn.style.cssText = 'margin-top: 10px; padding: 8px 16px; background: #E8742C; color: #1A1815; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;';
+  btn.style.cssText = 'margin-top: 10px; padding: 8px 16px; background: #2A8B8B; color: #1A1815; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;';
   btn.textContent = 'Reload';
   btn.addEventListener('click', () => location.reload());
 
@@ -253,7 +300,7 @@ async function createUI() {
     const options = voicesByLanguage(langCode)
       .map(v => `<option value="ai:${v.id}">${v.displayName} - ${v.tagline}</option>`)
       .join('\n              ');
-    return `<optgroup id="${id}" label="${label}" style="display:none;">
+    return `<optgroup id="${id}" label="${label}">
               ${options}
             </optgroup>`;
   };
@@ -270,7 +317,7 @@ async function createUI() {
       <!-- Header -->
       <div class="header">
         <h1>${icons.volume} GlowReadTTS</h1>
-        <p>Free AI Voices. Total Privacy.</p>
+        <p>On-Device AI Voices. Highlight as You Read.</p>
       </div>
 
       <!-- Text Input Area -->
@@ -310,17 +357,9 @@ async function createUI() {
       <div class="actions-section">
         <label class="section-label">Quick Actions</label>
         <div class="actions-grid">
-          <button id="btn-read-selection" class="action-btn" title="Read selected text">
-            <span class="action-icon">${icons.selection}</span>
-            <span>Selection</span>
-          </button>
-          <button id="btn-read-page" class="action-btn" title="Read entire page">
-            <span class="action-icon">${icons.fileText}</span>
-            <span>Full Page</span>
-          </button>
-          <button id="btn-upload" class="action-btn" title="Upload text or PDF file">
-            <span class="action-icon">${icons.upload}</span>
-            <span>Upload</span>
+          <button id="btn-help-action" class="action-btn" title="Open the Getting Started help guide">
+            <span class="action-icon">${icons.help}</span>
+            <span>Help</span>
           </button>
           <button id="btn-test" class="action-btn" title="Test current voice">
             <span class="action-icon">${icons.mic}</span>
@@ -335,28 +374,10 @@ async function createUI() {
 
       <!-- Voice & Speed Settings -->
       <div class="settings-section">
-        <!-- AI Voices Section -->
-        <div id="ai-voices-section" class="ai-voices-section">
-          <div class="ai-voices-title">${icons.sparkles} AI Voices (Offline & Free)</div>
-          <div class="ai-voices-description">Download once, use forever. No internet needed after setup.</div>
-          <div id="ai-voices-status" class="ai-voices-status">Not installed</div>
-          <button id="btn-download-ai-voices" class="action-btn-primary" style="width:100%;">
-            <span>${icons.download} Download AI Voices (~95MB)</span>
-          </button>
-          <div id="ai-voices-progress" class="ai-voices-progress hidden">
-            <div id="ai-voices-progress-bar" class="ai-voices-progress-bar"></div>
-          </div>
-          <span id="ai-voices-progress-text" class="ai-voices-progress-text hidden">0%</span>
-        </div>
-
         <!-- Voice Selection -->
         <div class="setting-group">
           <label class="setting-label">Voice</label>
           <select id="voice-select" class="select-input">
-            <option value="default">System Default</option>
-            <optgroup label="Browser Voices" id="browser-voices-group">
-              <!-- Browser voices added dynamically -->
-            </optgroup>
             ${aiVoicesOptgroups}
           </select>
         </div>
@@ -419,26 +440,19 @@ function setupEventListeners() {
     }
     
     // Action buttons
-    const selectionBtn = document.getElementById('btn-read-selection');
-    if (selectionBtn) {
-      selectionBtn.addEventListener('click', handleReadSelection);
+    const helpActionBtn = document.getElementById('btn-help-action');
+    if (helpActionBtn) {
+      // Reuses handleHelpClick — same target as the smaller question-mark
+      // icon next to the textarea, just exposed as a Quick Action for
+      // discoverability.
+      helpActionBtn.addEventListener('click', handleHelpClick);
     }
-    
-    const pageBtn = document.getElementById('btn-read-page');
-    if (pageBtn) {
-      pageBtn.addEventListener('click', handleReadPage);
-    }
-    
-    const uploadBtn = document.getElementById('btn-upload');
-    if (uploadBtn) {
-      uploadBtn.addEventListener('click', handleUpload);
-    }
-    
+
     const testBtn = document.getElementById('btn-test');
     if (testBtn) {
       testBtn.addEventListener('click', handleTestVoice);
     }
-    
+
     const settingsBtn = document.getElementById('btn-settings');
     if (settingsBtn) {
       settingsBtn.addEventListener('click', handleSettings);
@@ -453,11 +467,6 @@ function setupEventListeners() {
     const speedSlider = document.getElementById('speed-slider');
     if (speedSlider) {
       speedSlider.addEventListener('input', handleSpeedChange);
-    }
-
-    const downloadBtn = document.getElementById('btn-download-ai-voices');
-    if (downloadBtn) {
-      downloadBtn.addEventListener('click', handleDownloadAIVoices);
     }
 
     console.log('[GlowReadTTS] Event listeners setup complete');
@@ -527,24 +536,17 @@ function handleHelpClick() {
   window.close();
 }
 
-// Playback Control Handlers
+// Playback Control Handlers. AI audio always lives in the offscreen
+// document (popup-driven and right-click reads alike), so pause / resume /
+// stop are single forwarded messages.
 function handlePlayPause() {
-  const isAI = state.currentVoice.startsWith('ai:') && aiVoiceManager && aiVoiceManager.audio;
   if (state.isPlaying && !state.isPaused) {
-    if (isAI) {
-      aiVoiceManager.pause();
-    } else {
-      chrome.tts.pause();
-    }
+    forwardOffscreenAction('OFFSCREEN_PAUSE');
     state.isPaused = true;
     updatePlayButton('paused');
     updateStatus('Paused');
   } else if (state.isPaused) {
-    if (isAI) {
-      aiVoiceManager.resume();
-    } else {
-      chrome.tts.resume();
-    }
+    forwardOffscreenAction('OFFSCREEN_RESUME');
     state.isPaused = false;
     updatePlayButton('playing');
     updateStatus('Resuming...');
@@ -559,26 +561,13 @@ function handlePlayPause() {
 }
 
 function handleStop() {
-  chrome.tts.stop();
-  if (aiVoiceManager) {
-    aiVoiceManager.stop();
-    aiVoiceManager.dispose();
-  }
-
-  // Also stop any right-click AI read happening in the offscreen document.
-  // The offscreen has its own KokoroManager and audio element. Its handleStop
-  // sends OFFSCREEN_ENDED back to the SW, which relays STOP_HIGHLIGHT to the
-  // page - closing the cleanup loop without relying on the watchdog.
-  try {
-    chrome.runtime.sendMessage({
-      target: 'offscreen',
-      action: 'OFFSCREEN_STOP'
-    }, () => {
-      if (chrome.runtime.lastError) {
-        // Offscreen document may not exist yet; safe to ignore.
-      }
-    });
-  } catch (e) { /* no offscreen doc */ }
+  // AI audio (popup-driven OR right-click) lives in the offscreen document.
+  // OFFSCREEN_STOP tells it to stop the audio queue, post ABORT to its
+  // kokoro worker, and send OFFSCREEN_ENDED back to the SW — which relays
+  // STOP_HIGHLIGHT to the active tab. The offscreen keeps its model warm
+  // across reads; we deliberately do NOT dispose it here (disposing would
+  // force a 3–8 s reload on the next click).
+  forwardOffscreenAction('OFFSCREEN_STOP');
 
   if (state.shouldHighlight) {
     sendHighlightMessage('STOP_HIGHLIGHT');
@@ -596,24 +585,10 @@ function handleStop() {
 function handleRestart() {
   const text = state.currentText || sessionStorage.getItem('lastText');
   if (text) {
-    chrome.tts.stop();
-    if (aiVoiceManager) aiVoiceManager.stop();
-
-    // Also stop any right-click AI read happening in the offscreen document.
-    // Mirrors handleStop. Without this, an in-flight offscreen AI read would
-    // keep playing in parallel with the new restart.
-    try {
-      chrome.runtime.sendMessage(
-        { target: 'offscreen', action: 'OFFSCREEN_STOP' },
-        function() {
-          if (chrome.runtime.lastError) {
-            // Offscreen document may not exist yet; safe to ignore.
-          }
-        }
-      );
-    } catch (e) {
-      // chrome.runtime may be unavailable in rare teardown timing; safe to ignore.
-    }
+    // Stop any in-flight AI read in the offscreen. Mirrors handleStop.
+    // Without this, the in-flight offscreen audio would keep playing in
+    // parallel with the new restart.
+    forwardOffscreenAction('OFFSCREEN_STOP');
 
     if (state.shouldHighlight) {
       sendHighlightMessage('STOP_HIGHLIGHT');
@@ -629,177 +604,15 @@ function handleRestart() {
   }
 }
 
-// Action Button Handlers - COMPLETE IMPLEMENTATIONS
-async function handleReadSelection() {
-  setSelectedButton('btn-read-selection');
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    chrome.tabs.sendMessage(tab.id, { action: 'GET_SELECTED_TEXT' }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.log('[GlowReadTTS] Need to inject content script');
-        injectContentScript(tab, 'GET_SELECTED_TEXT');
-      } else if (response && response.text) {
-        console.log('[GlowReadTTS] Got selected text:', response.text.substring(0, 50) + '...');
-        // Put the text in the input area
-        const textInput = document.getElementById('text-input');
-        if (textInput) {
-          textInput.value = response.text;
-          handleTextInput({ target: textInput });
-        }
-        state.shouldHighlight = true;  // Enable highlight-as-you-read for page text
-        speakText(response.text);
-      } else {
-        updateStatus('No text selected');
-      }
-    });
-  } catch (error) {
-    console.error('Error:', error);
-    updateStatus('Error reading selection');
-  }
-}
-
-async function handleReadPage() {
-  setSelectedButton('btn-read-page');
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-    chrome.tabs.sendMessage(tab.id, { action: 'GET_PAGE_TEXT' }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.log('[GlowReadTTS] Need to inject content script for page');
-        injectContentScript(tab, 'GET_PAGE_TEXT');
-      } else if (response && response.text) {
-        console.log('[GlowReadTTS] Got page text, length:', response.text.length);
-        // Truncate if too long for display
-        const textInput = document.getElementById('text-input');
-        if (textInput) {
-          if (response.text.length > 5000) {
-            const truncated = response.text.substring(0, 5000);
-            textInput.value = truncated + '...\n[Display truncated. Full page text will still be read aloud.]';
-          } else {
-            textInput.value = response.text;
-          }
-          handleTextInput({ target: textInput });
-        }
-        state.shouldHighlight = true;  // Enable highlight-as-you-read for page text
-
-        // Inform the user whether Reader Mode was applied. Subtle hint;
-        // speakText's own status updates will overwrite this momentarily.
-        if (response.usedReaderMode) {
-          updateStatus('Reading article (Reader Mode)');
-        } else {
-          updateStatus('Reading page');
-        }
-
-        speakText(response.text);
-      } else {
-        updateStatus('No content found');
-      }
-    });
-  } catch (error) {
-    console.error('Error:', error);
-    updateStatus('Error reading page');
-  }
-}
-
-function handleUpload() {
-  setSelectedButton('btn-upload');
-  state.shouldHighlight = false;  // Uploaded text isn't on the page
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.txt,.md,.json,.csv,.pdf';
-
-  input.onchange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.name.endsWith('.pdf')) {
-        readPDFFile(file);
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target.result;
-
-        // Put text in input area
-        const textInput = document.getElementById('text-input');
-        if (textInput) {
-          textInput.value = text;
-          handleTextInput({ target: textInput });
-        }
-
-        speakText(text);
-      };
-      reader.onerror = () => {
-        updateStatus('Failed to read file');
-        hidePlaybackControls();
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  input.click();
-}
-
+// Action Button Handlers
 function handleTestVoice() {
   setSelectedButton('btn-test');
   state.shouldHighlight = false;  // Test text isn't on the page
 
-  // Branch the voice description on whether the current voice is AI or browser-based.
-  const isAI = state.currentVoice && state.currentVoice.startsWith('ai:');
-  const voiceLabel = isAI ? 'an AI voice' : 'a browser text-to-speech voice';
-
   const testText = "Hello! This is a test of the GlowReadTTS text-to-speech system. " +
-                   "You're currently listening to " + voiceLabel + " at " +
+                   "You're currently listening to an AI voice at " +
                    state.currentSpeed + "x speed.";
   speakText(testText);
-}
-
-function readPDFFile(file) {
-  updateStatus('Extracting text from PDF...');
-  showPlaybackControls();
-
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    const arrayBuffer = event.target.result;
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const base64String = btoa(binary);
-
-    chrome.runtime.sendMessage(
-      { action: 'EXTRACT_PDF_TEXT', pdfData: base64String },
-      (response) => {
-        if (response && response.success) {
-          const textInput = document.getElementById('text-input');
-          if (textInput) {
-            let displayText = response.text;
-            if (response.truncated) {
-              displayText = response.text +
-                '\n\n[PDF was truncated to 50,000 characters. Original was ' +
-                response.originalLength.toLocaleString() + ' characters.]';
-            }
-            textInput.value = displayText;
-            handleTextInput({ target: textInput });
-          }
-          speakText(response.text);  // Read only the truncated portion
-        } else {
-          const errorMsg = (response && response.error) ||
-            'This PDF contains no readable text (may be a scanned image)';
-          updateStatus(errorMsg);
-          hidePlaybackControls();
-        }
-      }
-    );
-  };
-
-  reader.onerror = () => {
-    updateStatus('Failed to read PDF file');
-    hidePlaybackControls();
-  };
-
-  reader.readAsArrayBuffer(file);
 }
 
 function handleSettings() {
@@ -819,6 +632,8 @@ async function handleVoiceChange(e) {
   if (state.isPlaying) {
     handleStop();
   }
+  // No prewarm on voice change — the extension loads the model on demand
+  // only when an actual read is triggered.
 }
 
 async function handleSpeedChange(e) {
@@ -836,62 +651,16 @@ async function handleSpeedChange(e) {
   }
 }
 
-// Splits long text into chunks at sentence boundaries for chrome.tts.
-// chrome.tts has a documented 32,768 char limit but voices fail silently
-// on much smaller amounts (often a few thousand chars for network voices).
-// 400 chars per chunk is a conservative ceiling that works reliably across
-// system voices, Google network voices, and Microsoft SAPI voices.
-// Splits at sentence-ending punctuation (. ! ?) followed by whitespace.
-// Falls back to whitespace splitting if no sentence boundary fits within
-// the chunk size, then to hard cut as last resort.
-function chunkTextForTTS(text, maxChunkSize = 400) {
-  if (!text || text.length <= maxChunkSize) {
-    return [text];
-  }
-  const chunks = [];
-  let remaining = text.trim();
-  while (remaining.length > maxChunkSize) {
-    let cutPoint = -1;
-    const searchEnd = Math.min(remaining.length, maxChunkSize);
-    // Prefer sentence boundary
-    for (let i = searchEnd - 1; i >= Math.floor(maxChunkSize / 2); i--) {
-      const c = remaining[i];
-      if ((c === '.' || c === '!' || c === '?') &&
-          (i === remaining.length - 1 || /\s/.test(remaining[i + 1]))) {
-        cutPoint = i + 1;
-        break;
-      }
-    }
-    // Fall back to whitespace
-    if (cutPoint === -1) {
-      for (let i = searchEnd - 1; i >= Math.floor(maxChunkSize / 2); i--) {
-        if (/\s/.test(remaining[i])) {
-          cutPoint = i + 1;
-          break;
-        }
-      }
-    }
-    // Hard cut as last resort
-    if (cutPoint === -1) {
-      cutPoint = maxChunkSize;
-    }
-    chunks.push(remaining.slice(0, cutPoint).trim());
-    remaining = remaining.slice(cutPoint).trim();
-  }
-  if (remaining.length > 0) {
-    chunks.push(remaining);
-  }
-  return chunks;
-}
-
-// Main TTS Function
+// Main TTS Function. AI-only — every voice in the catalog is an `ai:*` id,
+// played in the offscreen document. Supersession of an in-flight read is
+// handled by KokoroManager.generate() inside the offscreen, so we don't
+// need to send OFFSCREEN_STOP from here (doing so would race the new
+// POPUP_AI_GENERATE in transit and could land *after* the new generate
+// started, killing the wrong read).
 function speakText(text) {
   if (!text) return;
 
   notifyPlaybackStarted('popup-speakText');
-
-  chrome.tts.stop();
-  if (aiVoiceManager) aiVoiceManager.stop();
 
   // Stop any existing highlight before starting new speech
   sendHighlightMessage('STOP_HIGHLIGHT');
@@ -900,76 +669,66 @@ function speakText(text) {
   state.currentText = text;
 
   showPlaybackControls();
+  // Optimistic UI: paint the playing state on the click frame instead of
+  // waiting for the SW round-trip. The error path inside useAIVoiceTTS
+  // resets it if the start actually fails.
+  state.isPlaying = true;
+  state.isPaused = false;
+  updatePlayButton('playing');
   updateStatus('Preparing...');
 
-  if (state.currentVoice.startsWith('ai:')) {
-    useAIVoiceTTS(text);
-  } else {
-    // Browser TTS: word boundary events drive highlight position
-    if (state.shouldHighlight) {
-      sendHighlightMessage('START_HIGHLIGHT', { text: text });
-    }
-    useBrowserTTS(text);
-  }
+  useAIVoiceTTS(text);
 }
 
 async function useAIVoiceTTS(text) {
   updateStatus('Generating speech...');
   const voice = state.currentVoice.replace('ai:', '');
 
+  // For on-page reads (right-click selection), the SW drives highlight via
+  // OFFSCREEN_SENTENCE_START → SENTENCE_START relay using the tabId we pass.
+  // Typed text and test playback have shouldHighlight false and skip the
+  // tabId.
+  let tabId = null;
+  if (state.shouldHighlight) {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab && tab.id) tabId = tab.id;
+    } catch (e) { /* couldn't query tab; proceed without highlight */ }
+  }
+
   try {
-    const mgr = await getAIVoiceManager();
-    const audio = await mgr.generate(text, voice, state.currentSpeed);
+    // Route through the service worker → offscreen document. The offscreen
+    // owns the warm kokoro worker (survives popup close) and its
+    // OFFSCREEN_GENERATE_AND_PLAY handler now resolves on the FIRST
+    // streamed chunk's play(), not after the full paragraph generates —
+    // so this await returns once audio actually starts.
+    const reply = await chrome.runtime.sendMessage({
+      target: 'service-worker',
+      action: 'POPUP_AI_GENERATE',
+      text: text,
+      voice: voice,
+      speed: state.currentSpeed,
+      tabId: tabId
+    });
+
+    if (!reply || !reply.success) {
+      throw new Error((reply && reply.error) || 'No response from service worker');
+    }
+
+    // Aborted = a newer generate superseded ours, or the user clicked stop
+    // while we were still waiting for the first chunk. The newer flow (or
+    // stop handler) is responsible for the UI; we just bail.
+    if (reply.aborted) return;
 
     state.isPlaying = true;
     state.isPaused = false;
     updatePlayButton('playing');
     updateStatus('Reading...');
-
-    // Highlight: AI audio doesn't emit word boundaries, so drive highlights via
-    // timeupdate -> HIGHLIGHT_PROGRESS (proportional sentence advance).
-    if (state.shouldHighlight) {
-      const estimatedMs = (Number.isFinite(audio.duration) && audio.duration > 0)
-        ? audio.duration * 1000
-        : (text.length / 15) * 1000;
-      sendHighlightMessage('START_HIGHLIGHT', { text: text, estimatedDurationMs: estimatedMs });
-
-      audio.addEventListener('timeupdate', () => {
-        if (mgr.audio === audio) {
-          sendHighlightMessage('HIGHLIGHT_PROGRESS', {
-            currentTime: audio.currentTime,
-            duration: audio.duration
-          });
-        }
-      });
-    }
-
-    audio.addEventListener('ended', () => {
-      state.isPlaying = false;
-      state.isPaused = false;
-      updatePlayButton('stopped');
-      updateStatus('Finished');
-      if (state.shouldHighlight) {
-        sendHighlightMessage('STOP_HIGHLIGHT');
-        state.shouldHighlight = false;
-      }
-      // Free RAM once playback finishes
-      mgr.dispose();
-      setTimeout(() => hidePlaybackControls(), 2000);
-      notifyPlaybackEnded('ai-natural-end');
-    });
-
-    audio.addEventListener('error', () => {
-      state.isPlaying = false;
-      updateStatus('AI voice playback error');
-      updatePlayButton('stopped');
-      hidePlaybackControls();
-      if (state.shouldHighlight) {
-        sendHighlightMessage('STOP_HIGHLIGHT');
-        state.shouldHighlight = false;
-      }
-      notifyPlaybackEnded('ai-error');
-    });
+    // Cross-context end-of-playback UI (button → stopped, status →
+    // "Finished", hide controls) is driven by the chrome.storage.onChanged
+    // listener on `playbackActive`. The SW clears that flag on
+    // OFFSCREEN_ENDED — set when the offscreen's ChunkedAudio finishes
+    // its last chunk OR when the user stopped.
   } catch (error) {
     console.error('[GlowReadTTS] AI voice error:', error);
     updateStatus('AI voice error: ' + (error.message || 'unknown'));
@@ -981,56 +740,6 @@ async function useAIVoiceTTS(text) {
       state.shouldHighlight = false;
     }
     notifyPlaybackEnded('ai-exception');
-  }
-}
-
-async function handleDownloadAIVoices() {
-  const btn = document.getElementById('btn-download-ai-voices');
-  const statusEl = document.getElementById('ai-voices-status');
-  const progressWrap = document.getElementById('ai-voices-progress');
-  const progressBar = document.getElementById('ai-voices-progress-bar');
-  const progressText = document.getElementById('ai-voices-progress-text');
-
-  if (btn) btn.disabled = true;
-  if (statusEl) statusEl.textContent = 'Downloading...';
-  if (progressWrap) progressWrap.classList.remove('hidden');
-  if (progressText) progressText.classList.remove('hidden');
-
-  try {
-    const mgr = await getAIVoiceManager();
-    await mgr.downloadModel((loaded, total) => {
-      if (total > 0 && progressBar && progressText) {
-        const pct = Math.min(100, Math.round((loaded / total) * 100));
-        progressBar.style.width = pct + '%';
-        progressText.textContent = pct + '%';
-      }
-    });
-
-    chrome.storage.local.set({ ai_voices_installed: true });
-    if (statusEl) {
-      statusEl.textContent = 'Installed. Select an AI voice in the Voice dropdown below.';
-      statusEl.style.color = 'var(--success, #10B981)';
-    }
-    if (btn) btn.style.display = 'none';
-    if (progressWrap) progressWrap.classList.add('hidden');
-    if (progressText) progressText.classList.add('hidden');
-    setAIVoicesVisible(true);
-
-    // Briefly highlight the Voice dropdown to draw attention to where AI voices live.
-    const voiceSelectEl = document.getElementById('voice-select');
-    if (voiceSelectEl) {
-      voiceSelectEl.style.transition = 'box-shadow 1.5s ease';
-      voiceSelectEl.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.4)';
-      setTimeout(() => {
-        voiceSelectEl.style.boxShadow = '';
-      }, 2500);
-    }
-  } catch (error) {
-    console.error('[GlowReadTTS] AI voice download error:', error);
-    if (statusEl) statusEl.textContent = 'Download failed: ' + (error.message || 'unknown');
-    if (btn) btn.disabled = false;
-    if (progressWrap) progressWrap.classList.add('hidden');
-    if (progressText) progressText.classList.add('hidden');
   }
 }
 
@@ -1048,162 +757,6 @@ async function sendHighlightMessage(action, data) {
     }
   } catch (e) {
     // Highlight is best-effort - never fail TTS due to highlight messaging
-  }
-}
-
-function useBrowserTTS(text) {
-  chrome.tts.stop();
-
-  const options = {
-    rate: state.currentSpeed,
-    pitch: 1.0,
-    volume: 1.0,
-    // Request word/sentence boundary events for highlight tracking
-    desiredEventTypes: ['start', 'end', 'word', 'sentence', 'interrupted', 'cancelled', 'error', 'pause', 'resume']
-  };
-
-  if (state.currentVoice !== 'default') {
-    options.voiceName = state.currentVoice;
-  }
-
-  // Bug A fix: chrome.tts voices fail silently on long text (Google network
-  // voices fail at a few thousand chars even though spec says 32K limit).
-  // Split at sentence boundaries and queue with enqueue:true so voices stay
-  // within their working range while audio plays continuously.
-  const chunks = chunkTextForTTS(text);
-  console.log('[GlowReadTTS] Speaking', chunks.length, 'chunk(s) totalling', text.length, 'chars');
-
-  // Track cumulative offset so 'word'/'sentence' events map back to the full
-  // text's character positions, not the chunk being spoken. Without this,
-  // each chunk boundary would cause the on-page highlight to jump back to
-  // sentence 1 of the article (event.charIndex resets to 0 per chunk).
-  let cumulativeOffset = 0;
-
-  chunks.forEach((chunk, index) => {
-    const isLastChunk = index === chunks.length - 1;
-    // Capture this chunk's start offset for the closure (event handlers
-    // fire later when chunk is being spoken, after the loop has advanced).
-    const chunkStartOffset = cumulativeOffset;
-    // Advance offset for next chunk. +1 accounts for the trim/space lost
-    // between chunks (chunkTextForTTS calls .trim() which strips whitespace).
-    cumulativeOffset += chunk.length + 1;
-
-    const chunkOptions = {
-      ...options,
-      enqueue: index > 0,
-      onEvent: (event) => {
-        if (event.type === 'start' && index === 0) {
-          state.isPlaying = true;
-          state.isPaused = false;
-          updatePlayButton('playing');
-          updateStatus('Reading...');
-        } else if ((event.type === 'word' || event.type === 'sentence') &&
-                   state.shouldHighlight && typeof event.charIndex === 'number') {
-          // CHANGED FROM ORIGINAL: charIndex is per-chunk; add chunkStartOffset
-          // so the highlight maps to positions in the full original text.
-          sendHighlightMessage('HIGHLIGHT_UPDATE', {
-            charIndex: chunkStartOffset + event.charIndex
-          });
-        } else if ((event.type === 'end' || event.type === 'interrupted' ||
-                    event.type === 'cancelled') && isLastChunk) {
-          state.isPlaying = false;
-          state.isPaused = false;
-          updatePlayButton('stopped');
-          updateStatus(event.type === 'end' ? 'Finished' : 'Stopped');
-          // Clean up highlighting
-          if (state.shouldHighlight) {
-            sendHighlightMessage('STOP_HIGHLIGHT');
-            state.shouldHighlight = false;
-          }
-          if (event.type === 'end') {
-            setTimeout(() => hidePlaybackControls(), 2000);
-          } else {
-            hidePlaybackControls();
-          }
-          notifyPlaybackEnded('browser-tts-end');
-        } else if (event.type === 'error') {
-          chrome.tts.stop();  // flush any remaining queued chunks
-          state.isPlaying = false;
-          updateStatus('Error: ' + (event.errorMessage || 'Unknown'));
-          updatePlayButton('stopped');
-          if (state.shouldHighlight) {
-            sendHighlightMessage('STOP_HIGHLIGHT');
-            state.shouldHighlight = false;
-          }
-          hidePlaybackControls();
-          notifyPlaybackEnded('browser-tts-error');
-        }
-      }
-    };
-    chrome.tts.speak(chunk, chunkOptions);
-  });
-}
-
-// Content Script Injection - COMPLETE IMPLEMENTATION
-async function injectContentScript(tab, action) {
-  if (!tab.url || tab.url.startsWith('chrome://') || 
-      tab.url.startsWith('edge://') || 
-      tab.url.startsWith('chrome-extension://')) {
-    updateStatus('Cannot read this type of page');
-    return;
-  }
-  
-  try {
-    console.log('[GlowReadTTS] Injecting content script...');
-    
-    // Note: This inline fallback intentionally uses innerText, not Readability.
-    // It only fires when the persistent content script is unavailable on the
-    // active tab. The persistent content script (which uses Readability via the
-    // GET_PAGE_TEXT handler) handles the common case.
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => {
-        if (!window.GlowReadTTSInjected) {
-          window.GlowReadTTSInjected = true;
-
-          chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-            if (request.action === 'GET_SELECTED_TEXT') {
-              const selectedText = window.getSelection().toString();
-              console.log('[Content] Sending selected text:', selectedText.substring(0, 50));
-              sendResponse({ text: selectedText });
-            } else if (request.action === 'GET_PAGE_TEXT') {
-              const pageText = document.body ? document.body.innerText : '';
-              console.log('[Content] Sending page text, length:', pageText.length);
-              sendResponse({ text: pageText });
-            }
-            return true;
-          });
-        }
-      }
-    });
-    
-    // Small delay then retry the message
-    setTimeout(() => {
-      console.log('[GlowReadTTS] Sending message after injection:', action);
-      chrome.tabs.sendMessage(tab.id, { action }, (response) => {
-        if (response && response.text) {
-          console.log('[GlowReadTTS] Got text after injection:', response.text.substring(0, 50) + '...');
-          // Put text in input area
-          const textInput = document.getElementById('text-input');
-          if (textInput) {
-            if (action === 'GET_PAGE_TEXT' && response.text.length > 5000) {
-              const truncated = response.text.substring(0, 5000);
-              textInput.value = truncated + '...\n[Display truncated. Full page text will still be read aloud.]';
-            } else {
-              textInput.value = response.text;
-            }
-            handleTextInput({ target: textInput });
-          }
-          speakText(response.text);
-        } else {
-          updateStatus('No text found');
-        }
-      });
-    }, 100);
-    
-  } catch (error) {
-    console.error('[Inject] Failed:', error);
-    updateStatus('Cannot read this page');
   }
 }
 
@@ -1281,21 +834,18 @@ async function loadSavedSettings() {
     if (result.voice) {
       let voice = result.voice;
 
-      // Migration: if the saved voice is an AI voice ID that's no longer in the
-      // shipped catalog (e.g. 'ai:am_adam' or 'ai:af_sky', dropped in v1), move
-      // the user to the locked default 'ai:af_heart' and write to BOTH storage
-      // locations to keep the dual-write inconsistency from drifting.
-      if (voice.startsWith('ai:') && !isValidVoiceId(voice.replace('ai:', ''))) {
-        // Notify user via the visible AI voices status row (writing to the
-        // playback status would be invisible - that section is hidden until a
-        // read starts).
-        const aiStatusEl = document.getElementById('ai-voices-status');
-        if (aiStatusEl) {
-          aiStatusEl.textContent = 'Your previous AI voice is no longer available - defaulted to Heart';
-          aiStatusEl.style.color = 'var(--warning, #F59E0B)';
-        }
-
-        voice = 'ai:af_heart';
+      // Migration paths to the locked default (DEFAULT_AI_VOICE):
+      //   1. Saved voice is browser-TTS ('default' or a system voice name).
+      //      Browser TTS was removed; legacy users must land on an AI voice.
+      //   2. Saved voice is an AI id no longer in the shipped catalog
+      //      (e.g. 'ai:am_adam' / 'ai:af_sky', dropped in v1).
+      // Both write to BOTH storage keys (flat `voice` and nested
+      // `settings.voice`) so the right-click flow (which reads independently
+      // in the SW) doesn't keep firing on the stale value.
+      const isAI = voice.startsWith('ai:');
+      const isInvalidAI = isAI && !isValidVoiceId(voice.replace('ai:', ''));
+      if (!isAI || isInvalidAI) {
+        voice = DEFAULT_AI_VOICE;
         await chrome.storage.sync.set({ voice });
         const stored = await chrome.storage.sync.get('settings');
         const settings = stored.settings || {};
@@ -1307,14 +857,21 @@ async function loadSavedSettings() {
       if (voiceSelect) {
         voiceSelect.value = voice;
       }
+    } else {
+      // First open ever (no stored voice). Persist the default so the SW
+      // right-click path picks it up too.
+      state.currentVoice = DEFAULT_AI_VOICE;
+      await chrome.storage.sync.set({ voice: DEFAULT_AI_VOICE });
+      const voiceSelect = document.getElementById('voice-select');
+      if (voiceSelect) voiceSelect.value = DEFAULT_AI_VOICE;
     }
 
     if (result.speed) {
-      // Defensive clamp: chrome.tts voices have rate ceilings (Google network
-      // voices verified to silently no-op above 2.0; other voices likely similar).
-      // Slider HTML now caps at 2.0, but stored values from before the cap
-      // (3.0, 3.5, 4.0) need migration. Clamp on read AND write back so any
-      // existing user with a stale value self-heals on first popup open.
+      // Defensive clamp: speed > 2.0 distorts kokoro inference enough that
+      // the audio sounds garbled. Slider caps at 2.0, but stored values
+      // from before the cap (3.0, 3.5, 4.0) need migration. Clamp on read
+      // AND write back so any existing user with a stale value self-heals
+      // on first popup open.
       const clampedSpeed = Math.max(0.25, Math.min(2.0, parseFloat(result.speed) || 1.0));
       state.currentSpeed = clampedSpeed;
       const speedSlider = document.getElementById('speed-slider');
@@ -1340,67 +897,8 @@ async function loadSavedSettings() {
         });
       }
     }
-
-    // If AI voices were previously installed, surface the AI voice options.
-    const localResult = await chrome.storage.local.get(['ai_voices_installed']);
-    if (localResult.ai_voices_installed) {
-      try {
-        const mgr = await getAIVoiceManager();
-        const cached = await mgr.isModelCached();
-        if (cached) {
-          setAIVoicesVisible(true);
-          const statusEl = document.getElementById('ai-voices-status');
-          if (statusEl) statusEl.textContent = 'Installed';
-          const btn = document.getElementById('btn-download-ai-voices');
-          if (btn) btn.style.display = 'none';
-        }
-      } catch (e) { /* best effort */ }
-    }
   } catch (error) {
     console.error('[GlowReadTTS] Error loading settings:', error);
-  }
-}
-
-// Load available voices
-async function loadAvailableVoices() {
-  try {
-    chrome.tts.getVoices((voices) => {
-      const browserGroup = document.getElementById('browser-voices-group');
-
-      if (browserGroup && voices) {
-        voices.forEach(voice => {
-          if (voice.voiceName) {
-            const option = document.createElement('option');
-            option.value = voice.voiceName;
-            option.textContent = `${voice.voiceName} (${voice.lang || 'en'})`;
-            browserGroup.appendChild(option);
-          }
-        });
-      }
-      const voiceSelectEl = document.getElementById('voice-select');
-
-      // Bug B fix: chrome.tts.getVoices() is async and populates the dropdown
-      // AFTER loadSavedSettings has already tried to set dropdown.value. By
-      // the time browser voices arrive, dropdown.value has settled to default
-      // because the saved voice wasn't yet in the options list.
-      // Re-apply state.currentVoice now that all voices are present.
-      if (state.currentVoice && voiceSelectEl) {
-        const savedVoiceOption = Array.from(voiceSelectEl.options).find(
-          opt => opt.value === state.currentVoice
-        );
-        if (savedVoiceOption) {
-          voiceSelectEl.value = state.currentVoice;
-          console.log('[GlowReadTTS] Re-applied saved voice after voice population:', state.currentVoice);
-        } else {
-          // Saved voice no longer exists (uninstalled, voice list changed, etc.)
-          // Leave dropdown at its current default and clear stale state.
-          console.log('[GlowReadTTS] Saved voice no longer available:', state.currentVoice);
-          state.currentVoice = voiceSelectEl.value;
-        }
-      }
-    });
-  } catch (error) {
-    console.error('[GlowReadTTS] Error loading voices:', error);
   }
 }
 
