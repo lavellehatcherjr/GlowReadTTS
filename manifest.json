@@ -3,7 +3,7 @@
   "name": "GlowReadTTS - Text to Speech Voice Reader",
   "short_name": "GlowReadTTS",
   "version": "1.0.0",
-  "description": "Free text-to-speech with offline AI voices, highlight-as-you-read, PDF support, and total privacy.",
+  "description": "On-device AI voices read selected text aloud with highlight-as-you-read. Fully offline. No accounts, no tracking.",
   "author": "Lavelle Hatcher Jr",
   
   "icons": {
@@ -20,15 +20,25 @@
     "notifications",
     "offscreen",
     "scripting",
-    "storage",
-    "tts"
+    "storage"
   ],
   
   "host_permissions": [
-    "<all_urls>",
-    "https://huggingface.co/*"
+    "<all_urls>"
   ],
-  
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+
+  "cross_origin_embedder_policy": {
+    "value": "require-corp"
+  },
+
+  "cross_origin_opener_policy": {
+    "value": "same-origin"
+  },
+
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
@@ -37,11 +47,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": [
-        "libs/readability/Readability.js",
-        "libs/readability/Readability-readerable.js",
-        "content/content.js"
-      ],
+      "js": ["content/content.js"],
       "css": ["content/content.css"],
       "run_at": "document_idle"
     }
@@ -63,11 +69,11 @@
 
   "offline_enabled": true,
   
-  "minimum_chrome_version": "120",
+  "minimum_chrome_version": "121",
 
   "web_accessible_resources": [
     {
-      "resources": ["libs/pdfjs/*", "libs/kokoro/*", "libs/onnx/*", "libs/readability/*"],
+      "resources": ["libs/kokoro/*", "libs/kokoro-model/*", "libs/onnx/*"],
       "matches": ["<all_urls>"]
     },
     {
