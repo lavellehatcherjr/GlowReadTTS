@@ -14,11 +14,12 @@
   --text-secondary: #6B6864;
   --text-tertiary: #8A8680;
 
-  /* Brand accents */
-  --brand-orange: #E8742C;
-  --brand-orange-hover: #D9651D;
-  --brand-orange-fade-1: rgba(232, 116, 44, 0.05);
-  --brand-orange-fade-2: rgba(232, 116, 44, 0.10);
+  /* Brand accent (variable names are historical — values are TEAL).
+     #2A8B8B / rgb(42, 139, 139). Mirrors popup.css. */
+  --brand-orange: #2A8B8B;
+  --brand-orange-hover: #237575;
+  --brand-orange-fade-1: rgba(42, 139, 139, 0.05);
+  --brand-orange-fade-2: rgba(42, 139, 139, 0.10);
   --brand-yellow-fade-1: rgba(244, 208, 96, 0.18);
 
   /* Borders */
@@ -38,8 +39,8 @@
     --text-tertiary: #76716A;
     --border: #3A3530;
     --border-strong: #4A4540;
-    --brand-orange-fade-1: rgba(232, 116, 44, 0.08);
-    --brand-orange-fade-2: rgba(232, 116, 44, 0.15);
+    --brand-orange-fade-1: rgba(42, 139, 139, 0.08);
+    --brand-orange-fade-2: rgba(42, 139, 139, 0.15);
   }
 }
 
@@ -178,6 +179,130 @@ a:focus-visible {
   outline: 2px solid var(--brand-orange);
   outline-offset: 2px;
   border-radius: 2px;
+}
+
+/* Quick start callout — the visual hero of the page so first-time
+   users immediately see how to trigger a read. Card with a teal left
+   accent bar and big numbered badges. */
+
+.quick-start {
+  background: var(--brand-orange-fade-1);
+  border: 1px solid var(--brand-orange-fade-2);
+  border-left: 4px solid var(--brand-orange);
+  border-radius: 12px;
+  padding: 28px 32px;
+  margin-bottom: 48px;
+  box-shadow: var(--shadow-sm);
+}
+
+.quick-start-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brand-orange);
+  margin-bottom: 8px;
+}
+
+.quick-start h2 {
+  /* Override the default section h2 (top border + serif) — this card
+     is the page's hero, not a generic section heading. */
+  border-top: none !important;
+  padding-top: 0 !important;
+  margin: 0 0 18px;
+  font-size: 26px;
+  color: var(--text-primary);
+}
+
+.quick-start-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+  counter-reset: glowreadtts-step;
+}
+
+.quick-start-steps li {
+  counter-increment: glowreadtts-step;
+  position: relative;
+  padding: 6px 0 6px 48px;
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-height: 32px;
+}
+
+.quick-start-steps li:last-child {
+  margin-bottom: 0;
+}
+
+.quick-start-steps li::before {
+  content: counter(glowreadtts-step);
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--brand-orange);
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(42, 139, 139, 0.25);
+}
+
+/* Override the global li::marker (which colors numbered list bullets)
+   for the steps inside this card — we render our own badges. */
+.quick-start-steps li::marker {
+  color: transparent;
+}
+
+.quick-start-note {
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px dashed var(--brand-orange-fade-2);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+@media (forced-colors: active) {
+  .quick-start {
+    border: 2px solid CanvasText;
+  }
+  .quick-start-steps li::before {
+    background: ButtonFace;
+    color: ButtonText;
+    border: 2px solid CanvasText;
+    box-shadow: none;
+  }
+  .quick-start-eyebrow,
+  .quick-start-note {
+    color: CanvasText;
+  }
+}
+
+@media (max-width: 640px) {
+  .quick-start {
+    padding: 22px 20px;
+  }
+  .quick-start h2 {
+    font-size: 22px;
+  }
+  .quick-start-steps li {
+    padding-left: 42px;
+    font-size: 15px;
+  }
+  .quick-start-steps li::before {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
 }
 
 /* Quick reference table */
