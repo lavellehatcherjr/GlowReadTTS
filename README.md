@@ -12,6 +12,12 @@ A Chrome extension that reads selected webpage text and pasted/typed text aloud 
 
 ---
 
+## Demo
+
+https://github.com/user-attachments/assets/3907923e-1b0b-4ef5-92be-14e9553f21ec
+
+---
+
 ## Features
 
 - **AI Voices** - 15 bundled on-device neural voices (American and British English). ~96MB ships with the extension; no API keys, no downloads, no network calls.
