@@ -153,6 +153,25 @@ self.addEventListener('message', (e) => {
     activeStreamId++;
     return;
   }
+  // PING is deliberately handled OUTSIDE actionChain, exactly like ABORT.
+  // Its whole purpose is to answer while the chain is blocked — if it queued
+  // behind a wedged link it would tell us nothing. A PONG proves the worker's
+  // event loop is alive; the absence of one proves it is dead or fully wedged.
+  // That distinction is the only thing separating "an inference promise never
+  // resolved" from "the browser OOM-killed us", and both look identical from
+  // the manager otherwise.
+  //
+  // The nonce is echoed so the manager can discard a late PONG from an
+  // earlier check rather than treating it as proof of current liveness.
+  if (msg.action === 'PING') {
+    self.postMessage({
+      event: 'PONG',
+      activeStreamId: activeStreamId,
+      hasTts: !!tts,
+      nonce: msg.nonce
+    });
+    return;
+  }
   actionChain = actionChain.then(async () => {
     try {
       switch (msg.action) {
@@ -205,31 +224,40 @@ async function handleInit(warmupVoice) {
   }
 
   initPromise = (async () => {
-    // session_options forwards through transformers.js into
-    // ort.InferenceSession.create. ORT-web's defaults are usually right,
-    // but transformers.js doesn't always pass them through — setting them
-    // explicitly avoids relying on a default we don't control across
-    // versions. Wins are small per-call (a few %) but they compound across
-    // every sentence in a long read.
-    //   - graphOptimizationLevel: 'all'   — fuse / eliminate redundant ops
-    //   - executionMode: 'sequential'     — right choice for a transformer
-    //                                        decoder; 'parallel' adds
-    //                                        coordination overhead with no
-    //                                        win on serial graphs.
-    //   - enableMemPattern: true          — reuse allocation patterns
-    //                                        across runs; avoids per-call
-    //                                        malloc churn.
-    //   - enableCpuMemArena: true         — single arena for CPU tensors;
-    //                                        fewer system allocs.
+    // Only `dtype` and `device` are passed, because they are the only two
+    // options that survive the trip.
+    //
+    // We used to also pass a session_options object here. It never did
+    // anything. kokoro-js's wrapper is:
+    //
+    //   static async from_pretrained(id, {dtype = "fp32", device = null,
+    //                                     progress_callback = null} = {}) {
+    //     const n = StyleTextToSpeech2Model.from_pretrained(id,
+    //                 {progress_callback, dtype, device}), ...
+    //
+    // — it destructures exactly three options and forwards exactly those
+    // three. Anything else, session_options included, is dropped before it
+    // reaches transformers.js, so it never reaches
+    // ort.InferenceSession.create either. The old comment here claimed we
+    // were deliberately pinning graphOptimizationLevel / executionMode /
+    // enableMemPattern / enableCpuMemArena against version drift; none of
+    // that was happening.
+    //
+    // Losing it costs close to nothing: ORT-web already defaults
+    // graphOptimizationLevel to 'all' and enableMemPattern /
+    // enableCpuMemArena to true, which is what we were asking for. The
+    // options that are genuinely out of reach are freeDimensionOverrides,
+    // intraOpNumThreads / interOpNumThreads, and logSeverityLevel.
+    //
+    // Getting them back would mean patching the vendored bundle — the
+    // wrapper can't be bypassed from here, because kokoro.web.js exports
+    // only KokoroTTS, TextSplitterStream and env, so the underlying
+    // transformers.js model class (which DOES accept session_options) isn't
+    // reachable. Not worth a fork for the expected gain; revisit only if
+    // profiling points at one of those three specifically.
     const loaded = await KokoroTTS.from_pretrained(MODEL_ID, {
       dtype: MODEL_DTYPE,
-      device: 'wasm',
-      session_options: {
-        graphOptimizationLevel: 'all',
-        executionMode: 'sequential',
-        enableMemPattern: true,
-        enableCpuMemArena: true
-      }
+      device: 'wasm'
     });
 
     // Warmup pass: ORT compiles per-kernel code on its first execute, which
