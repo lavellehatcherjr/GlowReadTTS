@@ -17,6 +17,21 @@
 const INIT_TIMEOUT_MS = 60_000;
 const GENERATE_TIMEOUT_MS = 90_000;
 
+// Bound on the wait for the FIRST chunk, as distinct from the gap between
+// later chunks. GENERATE_TIMEOUT_MS used to cover both, which meant a worker
+// that never answered at all took 90 s to surface — and held its AudioContext
+// and decoded buffers for that whole window. Nothing legitimate takes 15 s to
+// produce one sentence of audio on a warm session: at 4-thread WASM a sentence
+// is 0.5–2 s, and cold-load cost is paid in _init(), not here. So a 15 s
+// silence means the worker is wedged or dead, and we say so instead of waiting.
+const FIRST_CHUNK_TIMEOUT_MS = 15_000;
+
+// Deadline for the pre-generate liveness probe. This is a bare postMessage
+// round trip on an idle worker — sub-millisecond when healthy. 2 s is
+// generous enough to absorb a busy main thread without ever tripping on a
+// worker that is merely slow.
+const PING_TIMEOUT_MS = 2_000;
+
 /**
  * AudioContext-backed playback queue. Exposes a small EventTarget surface
  * (play, pause, dispose, plus 'timeupdate', 'ended', 'error', 'sentencestart'
@@ -276,7 +291,11 @@ class ChunkedAudio extends EventTarget {
     this._scheduled = [];
     this._queued = [];
     try { this._gain.disconnect(); } catch (e) { /* ignore */ }
-    try { this._ctx.close(); } catch (e) { /* ignore */ }
+    // close() returns a promise; the surrounding try/catch only catches a
+    // synchronous throw (e.g. _ctx already gone), so a rejection would escape
+    // as an unhandled rejection and clutter exactly the console we need to
+    // read when diagnosing a wedged worker.
+    try { this._ctx.close().catch(() => {}); } catch (e) { /* ignore */ }
   }
 }
 
@@ -299,6 +318,127 @@ class KokoroManager {
     // new read — which is exactly the "stop didn't stop, it kept reading the
     // old text" bug.
     this._streamIdCounter = 0;
+
+    // Set by _onWorkerFatal when the worker fires `error` / `messageerror`.
+    // A non-null `this.worker` is NOT proof of life — a Worker whose thread
+    // has been terminated still presents as a live object and postMessage to
+    // it neither throws nor delivers — so this flag plus _pingWorker() are
+    // the only two ways we ever learn the worker is gone.
+    this._workerDead = false;
+
+    // Monotonic nonce for liveness probes, so a late PONG from an earlier
+    // probe can't be mistaken for proof that the worker is alive now.
+    this._pingNonce = 0;
+
+    // Bound once so add/removeEventListener reference the same function.
+    // These listeners are attached at worker creation and are deliberately
+    // NEVER removed by any cleanup() — the per-call error handlers in
+    // generate()/_init() are correctly torn down with their promises, which
+    // used to leave the worker completely unobserved between reads.
+    this._onWorkerFatal = (e) => {
+      const msg = (e && (e.message || e.filename)) || 'unknown worker error';
+      console.error('[GlowReadTTS] Fatal worker event:', msg);
+      this._workerDead = true;
+    };
+  }
+
+  /**
+   * Ask the worker whether it is alive. Resolves with the PONG payload, or
+   * null on timeout / no worker. Never rejects — callers branch on null.
+   *
+   * PING is answered outside the worker's actionChain, so a PONG means the
+   * event loop is running even if the chain is blocked behind an inference
+   * that will never settle. A missing PONG means the worker is dead or fully
+   * wedged. Either way the session is unusable, but the reason is logged so
+   * the underlying bug stays diagnosable.
+   */
+  _pingWorker(timeoutMs = PING_TIMEOUT_MS) {
+    if (!this.worker || this._workerDead) return Promise.resolve(null);
+
+    const nonce = ++this._pingNonce;
+    const worker = this.worker;
+
+    return new Promise((resolve) => {
+      let timer = null;
+      // Guards against the listener and the timer both firing — whichever
+      // lands first wins and the other becomes a no-op.
+      let settled = false;
+
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        try { worker.removeEventListener('message', onMessage); } catch (e) { /* ignore */ }
+        if (timer !== null) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        resolve(value);
+      };
+
+      const onMessage = (e) => {
+        const data = e.data || {};
+        // Ignore everything that isn't OUR pong. A generate() may be
+        // streaming concurrently, so this listener sees AUDIO_CHUNK traffic
+        // too; and a stale pong from a previous probe proves nothing about
+        // the worker's state now.
+        if (data.event !== 'PONG' || data.nonce !== nonce) return;
+        finish(data);
+      };
+
+      worker.addEventListener('message', onMessage);
+      timer = setTimeout(() => finish(null), timeoutMs);
+
+      try {
+        worker.postMessage({ action: 'PING', nonce: nonce });
+      } catch (e) {
+        // postMessage on a dead worker doesn't normally throw, but if it
+        // ever does, don't wait out the deadline for an answer.
+        finish(null);
+      }
+    });
+  }
+
+  /**
+   * Tear down a worker we can no longer trust and reset state so the next
+   * generate() rebuilds from scratch. Safe to call when the worker is already
+   * dead — terminate() on a terminated Worker is a no-op.
+   *
+   * Resetting `ready` and `_initPromise` is the whole point: without them
+   * generate() would keep skipping _init() (`if (!this.ready)`) and _init()
+   * would keep returning its cached resolved promise, so a replacement worker
+   * would be spawned but never actually INIT'd.
+   */
+  _recycleWorker(reason) {
+    // Loud on purpose. Recovering from this is not the same as fixing it —
+    // every occurrence is the underlying accumulation bug happening again,
+    // and the reason string is what distinguishes a wedged chain (PONG
+    // received, no chunks) from a dead worker (no PONG at all).
+    console.warn('[GlowReadTTS] Worker unresponsive (' + reason + '), recycling');
+
+    if (this.audio) {
+      try { this.audio.dispose(); } catch (e) { /* ignore */ }
+      this.audio = null;
+    }
+    // Settle any in-flight generate so its caller gets an AbortError instead
+    // of hanging on a promise whose worker no longer exists.
+    if (this._activeAbort) {
+      const abortFn = this._activeAbort;
+      this._activeAbort = null;
+      try { abortFn(); } catch (e) { /* ignore */ }
+    }
+
+    if (this.worker) {
+      try { this.worker.removeEventListener('error', this._onWorkerFatal); } catch (e) { /* ignore */ }
+      try { this.worker.removeEventListener('messageerror', this._onWorkerFatal); } catch (e) { /* ignore */ }
+      try { this.worker.terminate(); } catch (e) { /* ignore */ }
+    }
+
+    this.worker = null;
+    this.ready = false;
+    this._initPromise = null;
+    // Clear for the replacement worker — otherwise _ensureWorker() would
+    // immediately recycle the fresh one it just spawned.
+    this._workerDead = false;
   }
 
   /**
@@ -308,6 +448,25 @@ class KokoroManager {
    * listeners and they fire over the entire stream, not just chunk 1.
    */
   async generate(text, voice, speed) {
+    // Liveness gate. Only worth a round trip when we believe we're already
+    // initialised — if `ready` is false the worker is about to be built and
+    // INIT'd anyway, and pinging a worker mid-cold-load would just time out
+    // against a thread legitimately busy compiling 20 MB of WASM.
+    //
+    // On no answer we recycle rather than fail: `ready` drops to false, the
+    // block below rebuilds, and the read completes after a cold load instead
+    // of posting into the void and waiting out a timeout. That is what turns
+    // "broken until the extension is reloaded" into "one slow read".
+    //
+    // Deliberately placed before `_activeAbort` is assigned further down, so
+    // _recycleWorker()'s teardown can't abort the very call that triggered it.
+    if (this.ready) {
+      const pong = await this._pingWorker();
+      if (!pong) {
+        this._recycleWorker('no PONG within ' + PING_TIMEOUT_MS + 'ms');
+      }
+    }
+
     if (!this.ready) {
       await this._init(voice);
     }
@@ -333,6 +492,13 @@ class KokoroManager {
       const chunked = new ChunkedAudio(estimatedSec);
       let resolvedFirst = false;
       let timer = null;
+      // Did we hear ANYTHING from the worker during this call? This is the
+      // discriminator for whether a failure is worker-level (recycle) or
+      // ordinary (don't). A worker that posted even one message — including a
+      // stale-streamId one we filtered out, or an ERROR it reported itself —
+      // is alive and talking, and throwing away its warm 92 MB session would
+      // cost a 3–12 s cold load for nothing.
+      let sawAnyResponse = false;
 
       const cleanup = () => {
         if (this.worker) {
@@ -363,24 +529,46 @@ class KokoroManager {
       };
       this._activeAbort = abortFn;
 
-      const armTimer = () => {
+      // `waitingForFirstChunk` picks the deadline: 15 s while nothing has
+      // arrived (a silent worker), 90 s for the gap between later chunks (a
+      // long sentence on slow hardware, which is legitimate).
+      const armTimer = (waitingForFirstChunk) => {
         if (timer !== null) clearTimeout(timer);
+        const ms = waitingForFirstChunk ? FIRST_CHUNK_TIMEOUT_MS : GENERATE_TIMEOUT_MS;
         timer = setTimeout(() => {
           cleanup();
           if (!resolvedFirst) {
             chunked.dispose();
-            reject(new Error('Generation timed out after ' + GENERATE_TIMEOUT_MS + 'ms'));
+            if (!sawAnyResponse) {
+              // Silence for the whole window with not one message back: the
+              // worker is wedged or dead. Recycle so the NEXT read rebuilds
+              // instead of repeating this.
+              this._recycleWorker('no response within ' + ms + 'ms');
+            }
+            // Distinct from the mid-stream stall message below so the console
+            // says which failure this was.
+            reject(new Error(
+              'No audio produced within ' + Math.round(ms / 1000) + 's' +
+              (sawAnyResponse ? '' : ' (worker may be unresponsive)')
+            ));
           } else {
-            // Stream has stalled mid-playback. Surface as an error event so
-            // the consumer's error handler tears down the UI; don't reject
-            // the original promise (it already resolved on chunk 1).
+            // Stream has stalled mid-playback. The worker demonstrably works
+            // — it produced chunks — so this is NOT a recycle case. Surface
+            // as an error event so the consumer's error handler tears down
+            // the UI; don't reject the original promise (it already resolved
+            // on chunk 1).
             chunked.dispatchEvent(new Event('error'));
           }
-        }, GENERATE_TIMEOUT_MS);
+        }, ms);
       };
 
       const handler = (e) => {
         const data = e.data || {};
+        // Set BEFORE the streamId filter below: any message at all proves the
+        // worker's event loop is running, even one belonging to a superseded
+        // stream. This is only ever used to decide "recycle or not", never to
+        // decide what to play.
+        sawAnyResponse = true;
         // Drop events that belong to a previous (aborted/superseded) stream.
         // The worker stamps streamId on every AUDIO_CHUNK / AUDIO_DONE; a
         // chunk emitted after we posted ABORT but before the worker reached
@@ -392,7 +580,9 @@ class KokoroManager {
           return;
         }
         if (data.event === 'AUDIO_CHUNK') {
-          armTimer();
+          // A chunk arrived, so from here on we're bounding inter-chunk gaps,
+          // not worker silence — back to the generous 90 s budget.
+          armTimer(false);
 
           // Worker-supplied per-chunk metadata. ChunkedAudio uses this to
           // dispatch a 'sentencestart' event when this chunk begins playing,
@@ -446,6 +636,11 @@ class KokoroManager {
       const errorHandler = (e) => {
         cleanup();
         const msg = (e && (e.message || e.filename)) || 'unknown worker error';
+        // A worker-level `error` / `messageerror` event means the worker
+        // itself failed, not the generation — the session is not trustworthy
+        // afterwards. Recycle unconditionally here, unlike the timeout path
+        // which has to first rule out "worker is fine, just slow".
+        this._recycleWorker('worker error event: ' + msg);
         if (!resolvedFirst) {
           chunked.dispose();
           reject(new Error('worker error during generate: ' + msg));
@@ -454,7 +649,8 @@ class KokoroManager {
         }
       };
 
-      armTimer();
+      // Nothing has arrived yet — arm the short first-chunk deadline.
+      armTimer(true);
       this.worker.addEventListener('message', handler);
       this.worker.addEventListener('error', errorHandler);
       this.worker.addEventListener('messageerror', errorHandler);
@@ -492,9 +688,32 @@ class KokoroManager {
   }
 
   _ensureWorker() {
+    // A non-null `this.worker` is NOT proof of life. A Worker whose thread has
+    // been terminated — OOM-killed, or wedged inside WASM — still presents as
+    // a live object, and postMessage to it neither throws nor delivers. So
+    // this method cannot itself decide whether the worker is healthy.
+    //
+    // Liveness is established two ways, both outside here: _pingWorker()
+    // before each generate(), and the permanent `error` listener below. Both
+    // funnel into _recycleWorker(), which nulls this.worker — which is what
+    // makes the null-check below a working respawn trigger rather than the
+    // dead end it was.
+    //
+    // Kept synchronous on purpose: this is on the hot path and must not await
+    // a probe.
+    if (this.worker && this._workerDead) {
+      this._recycleWorker('fatal worker error event');
+    }
     if (!this.worker) {
       const url = chrome.runtime.getURL('libs/kokoro/kokoro-worker.js');
       this.worker = new Worker(url, { type: 'module' });
+      this._workerDead = false;
+      // Permanent, never removed by any cleanup(). The per-call handlers in
+      // generate()/_init() are correctly torn down with their promises, which
+      // left the worker entirely unobserved between reads — a worker that
+      // died while idle went unnoticed until the next read timed out.
+      this.worker.addEventListener('error', this._onWorkerFatal);
+      this.worker.addEventListener('messageerror', this._onWorkerFatal);
     }
   }
 
@@ -510,9 +729,15 @@ class KokoroManager {
     if (!this._initPromise) {
       this._initPromise = new Promise((resolve, reject) => {
         const cleanup = () => {
-          this.worker.removeEventListener('message', handler);
-          this.worker.removeEventListener('error', errorHandler);
-          this.worker.removeEventListener('messageerror', errorHandler);
+          // Null-guarded because _recycleWorker() can now null this.worker
+          // while an init is still in flight. generate()'s cleanup() has
+          // always guarded this; before recycling existed, _init()'s couldn't
+          // hit a null worker, and now it can.
+          if (this.worker) {
+            this.worker.removeEventListener('message', handler);
+            this.worker.removeEventListener('error', errorHandler);
+            this.worker.removeEventListener('messageerror', errorHandler);
+          }
           clearTimeout(timer);
         };
         const handler = (e) => {
@@ -534,10 +759,18 @@ class KokoroManager {
           // SW↔offscreen message channel would close with the opaque
           // "channel closed" error.
           const msg = (e && (e.message || e.filename)) || 'unknown worker error';
+          // Worker-level failure during init — there is no warm session to
+          // preserve, so drop it and let the next call build a fresh one.
+          this._recycleWorker('worker error during init: ' + msg);
           reject(new Error('worker error during init: ' + msg));
         };
         const timer = setTimeout(() => {
           cleanup();
+          // 60 s without a READY means the worker never finished loading the
+          // model. There is no usable session to keep, so recycle rather than
+          // leave a half-initialised worker that generate() would go on
+          // pinging and rebuilding around.
+          this._recycleWorker('init timed out after ' + INIT_TIMEOUT_MS + 'ms');
           reject(new Error('Model init timed out after ' + INIT_TIMEOUT_MS + 'ms'));
         }, INIT_TIMEOUT_MS);
         this.worker.addEventListener('message', handler);
