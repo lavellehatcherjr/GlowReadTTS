@@ -15,7 +15,16 @@ const state = {
   currentVoice: DEFAULT_AI_VOICE,
   currentSpeed: 1.0,
   currentText: '',
-  shouldHighlight: false  // true when reading page/selection text (enables highlight-as-you-read)
+  shouldHighlight: false,  // true when reading page/selection text (enables highlight-as-you-read)
+  // True once the service worker reports the offscreen kokoro worker has
+  // finished INIT + warmup. Read from chrome.storage.session (set by the SW)
+  // so it's accurate no matter who triggered the prewarm — popup open, voice
+  // switch, or the content script's selection ping before the popup existed.
+  // Drives the status text's "preparing the voice" vs "generating speech"
+  // distinction; nothing else depends on it.
+  aiPrewarmReady: false,
+  // setInterval id for the elapsed-seconds status cue. null when idle.
+  statusTimer: null
 };
 
 // Playback state chokepoints. ALL audio start events route through notifyPlaybackStarted.
@@ -51,6 +60,13 @@ function setupPlaybackStateSync() {
   try {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'session') return;
+      // Prewarm completion can land while the popup is open (the user opens
+      // the popup, we fire the prewarm, it finishes a few seconds later).
+      // Tracking it here keeps the status text honest if they click Read in
+      // the middle of that window.
+      if (changes.aiPrewarmReady) {
+        state.aiPrewarmReady = changes.aiPrewarmReady.newValue === true;
+      }
       if (!changes.playbackActive) return;
       const isActive = changes.playbackActive.newValue === true;
       if (isActive) return; // start events update the UI directly elsewhere
@@ -82,6 +98,48 @@ function handleRemotePlaybackEnded() {
     state.shouldHighlight = false;
   }
   setTimeout(() => hidePlaybackControls(), 2000);
+}
+
+// Ask the service worker to prewarm the AI voice model: create the offscreen
+// document, load the 92 MB ONNX graph, and run the warmup inference so a
+// later read pays only inference time.
+//
+// Reuses the exact WARM_AI_VOICE message the content script sends on text
+// selection — one prewarm path, not two. The SW's prewarmOffscreenIfAIVoice()
+// is in-flight de-duplicated, so firing this alongside a selection-triggered
+// prewarm collapses to a single model load rather than doubling it.
+//
+// Fire-and-forget by design: never awaited, never blocks popup render, and a
+// failure is swallowed (the on-demand path in the SW still creates the
+// offscreen document when the user actually reads).
+//
+// Gated twice on purpose:
+//   1. The saved voice must start with 'ai:'. Checked here as well as in the
+//      SW so a browser-voice user never even wakes the service worker.
+//   2. The user's `prewarmOnSelection` preference must not be false. The name
+//      is selection-specific for historical reasons, but the setting means
+//      "may the extension load the model before I ask for a read", which
+//      covers this trigger too. Mirrors content.js: default ON, and treat an
+//      unreadable value as ON rather than guessing the user opted out.
+function requestAIPrewarm() {
+  if (typeof state.currentVoice !== 'string' || !state.currentVoice.startsWith('ai:')) return;
+
+  const fire = () => {
+    try {
+      chrome.runtime.sendMessage(
+        { target: 'service-worker', action: 'WARM_AI_VOICE' },
+        () => { void chrome.runtime.lastError; }
+      );
+    } catch (e) { /* SW may be torn down; the on-demand path still works */ }
+  };
+
+  try {
+    chrome.storage.local.get('prewarmOnSelection')
+      .then(r => { if (r.prewarmOnSelection !== false) fire(); })
+      .catch(() => fire());
+  } catch (e) {
+    fire();
+  }
 }
 
 // Send a fire-and-forget action to the offscreen document (used for stop /
@@ -164,10 +222,27 @@ async function initializePopup() {
     setupPlaybackStateSync();
     await loadSavedSettings();
 
-    // No prewarm here. The extension is fully on-demand — the AI voice
-    // model loads only when the user explicitly invokes a read (Read
-    // Text / Test Voice / right-click), trading a 3–6 s cold-load on
-    // the first read of a session for ~95 MB less idle RAM.
+    // Prewarm the model now. Opening the popup is a strong intent signal, and
+    // the user then spends seconds choosing a voice and speed — dead time that
+    // absorbs the load instead of stacking on top of it. Without this, a read
+    // started from the popup (Read Text / Test Voice) with no prior page
+    // selection pays the whole 3–12 s cold path on the click, while a
+    // right-click read pays none of it because the content script already
+    // prewarmed on selection.
+    //
+    // The RAM tradeoff the old comment protected is preserved: this only fires
+    // when an AI voice is ALREADY the saved default, so users who never turned
+    // AI voices on still pay zero idle RAM. It just stops charging the users
+    // who did opt in for the privilege.
+    requestAIPrewarm();
+
+    // Pick up a prewarm that already completed before this popup opened (the
+    // content script fires one on any text selection), so the first read's
+    // status text says "generating" rather than "preparing".
+    try {
+      const warm = await chrome.storage.session.get('aiPrewarmReady');
+      state.aiPrewarmReady = warm.aiPrewarmReady === true;
+    } catch (e) { /* session storage unavailable; assume cold and say so */ }
 
     console.log('[GlowReadTTS] Initialization complete');
   } catch (error) {
@@ -472,6 +547,11 @@ function setupEventListeners() {
       speedSlider.addEventListener('input', handleSpeedChange);
     }
 
+    // Closing the popup tears down this document and its timers with it, so
+    // this is belt-and-braces rather than a real leak fix — but it keeps the
+    // elapsed cue's lifecycle explicit alongside the paths that clear it.
+    window.addEventListener('pagehide', stopElapsedStatus);
+
     console.log('[GlowReadTTS] Event listeners setup complete');
   } catch (error) {
     console.error('[GlowReadTTS] Error setting up event listeners:', error);
@@ -624,6 +704,7 @@ function handleSettings() {
 
 // Voice and Speed Handlers
 async function handleVoiceChange(e) {
+  const previousVoice = state.currentVoice;
   state.currentVoice = e.target.value;
   // Dual-write to flat `voice` and nested `settings.voice` so the popup,
   // options page, and service-worker context-menu flow all see the same value.
@@ -635,8 +716,16 @@ async function handleVoiceChange(e) {
   if (state.isPlaying) {
     handleStop();
   }
-  // No prewarm on voice change — the extension loads the model on demand
-  // only when an actual read is triggered.
+
+  // Switching the dropdown to an AI voice is explicit intent, same as opening
+  // the popup with one already saved — so prewarm on that transition too.
+  // Only on non-AI -> AI: once the worker is warm, a second prewarm is a
+  // no-op (the offscreen resolves immediately on mgr.ready), so firing it
+  // when moving between two AI voices would just be a wasted round-trip.
+  const wasAIVoice = typeof previousVoice === 'string' && previousVoice.startsWith('ai:');
+  if (!wasAIVoice) {
+    requestAIPrewarm();
+  }
 }
 
 async function handleSpeedChange(e) {
@@ -684,7 +773,15 @@ function speakText(text) {
 }
 
 async function useAIVoiceTTS(text) {
-  updateStatus('Generating speech...');
+  // Say which wait this actually is. If the prewarm hasn't reported ready,
+  // the click landed before the model finished loading and the user is about
+  // to wait seconds for the model, not for their sentence — "Generating
+  // speech..." would be a lie and reads as a hang. Either way an elapsed
+  // counter appears after ~1.5 s so the popup never looks frozen.
+  startElapsedStatus(state.aiPrewarmReady
+    ? 'Generating speech...'
+    : 'Preparing AI voice (first read of the session)...');
+
   const voice = state.currentVoice.replace('ai:', '');
 
   // For on-page reads (right-click selection), the SW drives highlight via
@@ -720,8 +817,13 @@ async function useAIVoiceTTS(text) {
 
     // Aborted = a newer generate superseded ours, or the user clicked stop
     // while we were still waiting for the first chunk. The newer flow (or
-    // stop handler) is responsible for the UI; we just bail.
-    if (reply.aborted) return;
+    // stop handler) is responsible for the UI; we just bail — but drop our
+    // elapsed cue first so it can't keep counting under whatever status
+    // text that other flow just wrote.
+    if (reply.aborted) {
+      stopElapsedStatus();
+      return;
+    }
 
     state.isPlaying = true;
     state.isPaused = false;
@@ -798,10 +900,48 @@ function updatePlayButton(status) {
   }
 }
 
+// Any plain status update cancels a running elapsed cue. Routing every
+// existing call site through here means playback start ("Reading..."), stop
+// ("Stopped"), natural end ("Finished") and the error path all clear the
+// timer without each having to remember to.
 function updateStatus(text) {
+  stopElapsedStatus();
+  setStatusText(text);
+}
+
+function setStatusText(text) {
   const statusEl = document.getElementById('status-text');
   if (statusEl) {
     statusEl.textContent = text;
+  }
+}
+
+// A cold start can sit for 3–12 s while the model loads. A static string
+// there reads as a frozen popup, so append a live seconds count once the wait
+// stops looking instant.
+//
+// Deliberately an elapsed timer and not a progress bar: kokoro-js does
+// forward a progress_callback, but surfacing a real percentage needs
+// INIT->READY plumbing through the worker and manager. An honest "this has
+// been running 4s" beats an invented percentage, so we wait for the real
+// number rather than fabricating one.
+const ELAPSED_CUE_DELAY_MS = 1500;
+
+function startElapsedStatus(baseText) {
+  stopElapsedStatus();
+  setStatusText(baseText);
+  const startedAt = Date.now();
+  state.statusTimer = setInterval(() => {
+    const elapsed = Date.now() - startedAt;
+    if (elapsed < ELAPSED_CUE_DELAY_MS) return;
+    setStatusText(baseText + ' ' + Math.floor(elapsed / 1000) + 's');
+  }, 500);
+}
+
+function stopElapsedStatus() {
+  if (state.statusTimer !== null) {
+    clearInterval(state.statusTimer);
+    state.statusTimer = null;
   }
 }
 
