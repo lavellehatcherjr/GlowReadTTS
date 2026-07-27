@@ -193,6 +193,9 @@ const GlowReadTTSHighlight = (() => {
     let startNode = null, startOffset = 0;
     let endNode = null, endOffset = 0;
 
+    // A sentence usually spans several text nodes, so start and end are resolved
+    // independently in one pass. The comparisons are deliberately asymmetric:
+    // rawEnd is exclusive, so it may land exactly on a node's rawEnd.
     for (let k = 0; k < nodeMap.length; k++) {
       const nm = nodeMap[k];
       if (!startNode && rawStart < nm.rawEnd) {
@@ -206,6 +209,7 @@ const GlowReadTTSHighlight = (() => {
       }
     }
 
+    // Null means this sentence goes unhighlighted; the read continues either way.
     if (!startNode || !endNode) return null;
     if (startOffset < 0 || startOffset > startNode.textContent.length) return null;
     if (endOffset < 0 || endOffset > endNode.textContent.length) return null;
@@ -247,6 +251,7 @@ const GlowReadTTSHighlight = (() => {
 
     for (let si = 0; si < sentences.length; si++) {
       const needle = sentences[si].text.replace(/\s+/g, ' ').trim();
+      // One or two characters would match almost anywhere; don't guess.
       if (needle.length < 3) {
         sentenceRanges.push(null);
         continue;
@@ -269,6 +274,8 @@ const GlowReadTTSHighlight = (() => {
       const rawEnd = toRaw[normIdx + needle.length - 1] + 1;
       const range = createRangeFromPositions(rawStart, rawEnd, nodeMap);
       sentenceRanges.push(range);
+      // Advance past this match so a sentence repeated on the page maps to its
+      // next occurrence rather than every copy collapsing onto the first.
       searchFrom = normIdx + needle.length;
     }
   }
@@ -700,6 +707,9 @@ function hideLoadingPill() {
     const pill = glowreadttsLoadingPill;
     glowreadttsLoadingPill = null;
     pill.classList.remove('glowreadtts-visible');
+    // 250 covers the 200ms opacity transition on .glowreadtts-loading-pill in
+    // content.css, plus buffer. Lengthen that transition and the pill is
+    // removed mid-fade. hideStopButton() carries the same coupling.
     setTimeout(() => { try { pill.remove(); } catch (e) { /* ignore */ } }, 250);
   }
 }
@@ -775,6 +785,8 @@ function hideStopButton() {
     const btn = glowreadttsStopButton;
     glowreadttsStopButton = null;
     btn.classList.remove('glowreadtts-visible');
+    // 250 covers the 200ms opacity transition on .glowreadtts-stop-btn in
+    // content.css, plus buffer. Same coupling as hideLoadingPill().
     setTimeout(() => { try { btn.remove(); } catch (e) { /* ignore */ } }, 250);
   }
 }
