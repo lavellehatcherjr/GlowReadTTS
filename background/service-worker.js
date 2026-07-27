@@ -55,11 +55,15 @@ let offscreenPrewarmPromise = null;
 
 /**
  * Eagerly create the offscreen document and warm its kokoro worker so the
- * user's first right-click read pays only inference time, not the full
- * model-load + JIT-warmup + voice-fetch cost (~3-6 s on warm CPUs). Called
- * from the WARM_AI_VOICE message handler when the content script detects
- * a meaningful text selection AND the user hasn't disabled the
- * `prewarmOnSelection` setting.
+ * user's first read pays only inference time, not the full model-load +
+ * JIT-warmup + voice-fetch cost (~3-6 s on warm CPUs). Called from the
+ * WARM_AI_VOICE message handler, which fires from two places, both of which
+ * gate on an `ai:` voice AND the user's `prewarmOnSelection` setting:
+ *   - content.js, when it detects a meaningful text selection
+ *   - popup.js, when the popup opens with an AI voice saved, or when the
+ *     user switches the dropdown to one
+ * The in-flight de-dupe above means those collapse to a single model load
+ * when they overlap.
  *
  * Best-effort: any failure is logged and swallowed — the on-demand path in
  * speakFromServiceWorker still creates the offscreen doc as a fallback.
@@ -86,6 +90,15 @@ async function prewarmOffscreenIfAIVoice() {
       });
       if (reply && reply.success === false) {
         console.warn('[GlowReadTTS SW] Offscreen prewarm reported failure:', reply.error);
+      } else {
+        // Publish completion so the popup can tell "the model is still
+        // loading" from "the model is loaded, we're generating audio" in its
+        // status text. chrome.storage.session clears on browser restart,
+        // which is exactly the lifetime of the warm offscreen document this
+        // flag describes.
+        try {
+          await chrome.storage.session.set({ aiPrewarmReady: true });
+        } catch (e) { /* session storage unavailable; popup just says "preparing" */ }
       }
     } catch (err) {
       console.warn('[GlowReadTTS SW] Offscreen prewarm failed (will retry on demand):', err && err.message);
@@ -152,7 +165,12 @@ async function waitForOffscreenReady() {
       });
       if (reply && reply.success) return;
     } catch (e) { /* listener not yet registered; retry */ }
-    await new Promise(r => setTimeout(r, 100));
+    // 25 ms, not 100: createDocument() resolves before offscreen.js finishes
+    // loading, so a cold creation almost always lost a full poll quantum
+    // waiting on a document that was already nearly ready. The loop is bounded
+    // by wall-clock (OFFSCREEN_READY_TIMEOUT_MS) rather than an iteration
+    // count, so the total wait budget is unchanged — only the granularity.
+    await new Promise(r => setTimeout(r, 25));
   }
   throw new Error('Offscreen document failed to become ready within ' + OFFSCREEN_READY_TIMEOUT_MS + 'ms');
 }
@@ -407,7 +425,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false;
   }
 
-  console.log('[Service Worker] Message received:', request.action);
+  // OFFSCREEN_PROGRESS and OFFSCREEN_SENTENCE_START are high-frequency
+  // relays that fire throughout every read (a watchdog tap every ~5 s, plus
+  // one per sentence). Logging them wakes the service worker on each one,
+  // costs measurably more with DevTools open — exactly when someone is
+  // profiling — and buries every log that actually matters. Everything else
+  // still logs.
+  if (request.action !== 'OFFSCREEN_PROGRESS' && request.action !== 'OFFSCREEN_SENTENCE_START') {
+    console.log('[Service Worker] Message received:', request.action);
+  }
 
   (async () => {
     try {
@@ -459,12 +485,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case 'WARM_AI_VOICE':
-          // Selection-driven prewarm signal from the content script.
-          // Content script gates on the user's `prewarmOnSelection`
-          // setting before sending this — if it arrives, the user has
-          // opted into faster first-reads at the cost of ~95 MB of RAM
-          // after their first selection of the session. The prewarm
-          // call itself is idempotent so repeated pings collapse.
+          // Prewarm signal. Sent by the content script on a text selection,
+          // and by the popup when it opens with an AI voice saved or the
+          // user switches to one. Both senders gate on the user's
+          // `prewarmOnSelection` setting before sending this — if it
+          // arrives, the user has opted into faster first-reads at the cost
+          // of ~95 MB of RAM for the session. The prewarm call itself is
+          // idempotent so repeated pings from either sender collapse.
           prewarmOffscreenIfAIVoice();
           sendResponse({ success: true });
           break;
