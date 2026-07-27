@@ -23,7 +23,7 @@ Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS 
 
 **2.1** All text-to-speech processing occurs entirely and exclusively on your local device:
 
-- **(a)** AI Voice Synthesis: Text is processed by a neural network model (Kokoro-82M ONNX) running locally on your device via WebAssembly (ONNX Runtime Web). The model weights and voice embeddings are bundled inside the extension package. No text is transmitted to any external server for voice synthesis.
+- **(a)** AI Voice Synthesis: Text is processed by a neural network model (Kokoro 82M) running locally on your device via WebAssembly (ONNX Runtime Web) inside an offscreen document. The model weights and all voice embeddings are bundled inside the extension package; no runtime download is required and no text is transmitted to any external server.
 
 **2.2** The Software has no backend servers, no cloud infrastructure, no databases, and no server-side code. There is no server to which data could be transmitted.
 
@@ -54,8 +54,8 @@ Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS 
 - **(a)** "storage" - to save your voice and speed preferences locally on your device.
 - **(b)** "activeTab" - to read selected text from the currently active browser tab when you explicitly request a right-click read via the "Read with GlowReadTTS" menu item.
 - **(c)** "contextMenus" - to add the "Read with GlowReadTTS" option to the right-click context menu.
-- **(d)** "notifications" - to surface a brief "Preparing audio…" toast on the first AI read of a session.
-- **(e)** "offscreen" - to host the audio playback element and the on-device neural inference Web Worker in a document that survives popup close.
+- **(d)** "notifications" - to surface a brief "Preparing audio..." toast on the first AI right-click read of a session.
+- **(e)** "offscreen" - to host the audio playback and the on-device neural inference Web Worker in a document that survives the popup closing.
 - **(f)** "scripting" - to inject the highlight-as-you-read content script on tabs that don't already have it loaded (e.g., tabs that were open before the Software was installed or reloaded).
 - **(g)** "<all_urls>" host permission - required for the content script to operate on any webpage the user visits, so that the right-click "Read with GlowReadTTS" action and its highlight-as-you-read functionality work on all websites. This permission does NOT grant the Software automatic access to page content; selected text is only accessed when the user explicitly triggers a reading action via the right-click menu.
 
