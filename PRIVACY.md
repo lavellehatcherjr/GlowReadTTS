@@ -2,7 +2,7 @@
 
 # Privacy Policy
 
-**Last Updated:** May 10, 2026
+**Last Updated:** July 28, 2026
 
 Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS browser extension ("Software"). This Privacy Policy describes how we handle information when you use the Software. By using the Software, you agree to the practices described in this Privacy Policy.
 
@@ -35,7 +35,7 @@ Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS 
 - **(b)** EULA/Privacy Policy acceptance state (`chrome.storage.local`) - records that you accepted these terms, the version accepted, and the date of acceptance.
 - **(c)** Selection-prewarm preference (`chrome.storage.local`) - a single boolean (`prewarmOnSelection`) that controls whether the AI voice model preloads when you select text on a page. Stored only on this device - never syncs to any server.
 - **(d)** Session text for playback continuity (`sessionStorage`) - temporarily stores the most recently read text. This is automatically cleared when the popup is closed.
-- **(e)** Transient playback state flag (`chrome.storage.session`) - a single boolean (`playbackActive`) used internally to surface a "Reading in progress" banner when the popup reopens during an active read. Cleared when audio ends or is stopped, and automatically cleared on browser restart. Contains no user content or identifying information.
+- **(e)** Transient internal state flags (`chrome.storage.session`) - a small set of booleans (`playbackActive`, `aiPrewarmReady`, `offscreenReady`) used internally to surface the "Reading in progress" banner when the popup reopens during an active read, to track whether the AI voice model has finished loading for the current browser session, and to coordinate the Software's own components. Individual flags are cleared as soon as they are no longer needed (for example, `playbackActive` is cleared when audio ends or is stopped), and all of them are cleared automatically when the browser closes. These flags contain no user content or identifying information.
 
 **3.2** No data stored by the Software is accessible to other extensions, websites, or applications. Chrome's storage APIs are sandboxed to the extension's unique origin.
 
