@@ -9,8 +9,11 @@
 # License: Apache 2.0 (model and voices are derivative works of hexgrad/Kokoro-82M,
 #          also Apache 2.0). Bundling and redistribution are explicitly permitted.
 #
-# Run this once after cloning the repo (or after Clear AI Voice Cache).
-# Requires: curl, ~70 MB free disk, network access to huggingface.co.
+# The model and voices are committed to this repository, so a fresh clone
+# already has them. Run this only to re-derive libs/kokoro-model/ from
+# upstream, e.g. after deleting it to verify the bundled files match.
+#
+# Requires: curl, ~96 MB free disk, network access to huggingface.co.
 #
 # Usage:
 #   bash scripts/fetch-kokoro-model.sh           # download everything
@@ -34,6 +37,10 @@ VERIFY_ONLY=0
 if [ "${1:-}" = "--verify" ]; then
   VERIFY_ONLY=1
 fi
+
+# Tallies for the verify-mode summary.
+CHECKED=0
+MISSING=0
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,6 +69,23 @@ fetch() {
   echo "    saved $(du -h "$out" | cut -f1)"
 }
 
+# Call fetch() through this, never directly.
+#
+# In verify mode a missing file must not end the run: the point of --verify is
+# the full inventory, and `set -e` would otherwise stop at the first gap. So the
+# call is guarded and the miss is counted instead.
+#
+# In download mode the call stays bare on purpose. A failed curl should abort
+# rather than leave a partial bundle behind, and `set -e` is what does that.
+grab() {
+  CHECKED=$((CHECKED + 1))
+  if [ "$VERIFY_ONLY" -eq 1 ]; then
+    fetch "$1" "$2" || MISSING=$((MISSING + 1))
+    return 0
+  fi
+  fetch "$1" "$2"
+}
+
 # ── pre-flight ──────────────────────────────────────────────────────────────
 
 if ! command -v curl >/dev/null 2>&1; then
@@ -72,7 +96,7 @@ fi
 if [ "$VERIFY_ONLY" -eq 1 ]; then
   echo "=== Verify-only mode (no downloads) ==="
 else
-  echo "=== Fetching Kokoro-82M-v1.0-ONNX (q4) into $OUT_DIR/ ==="
+  echo "=== Fetching Kokoro-82M-v1.0-ONNX (q8) into $OUT_DIR/ ==="
   echo "Source: $BASE"
 fi
 echo ""
@@ -80,39 +104,40 @@ echo ""
 # ── metadata files (~few KB each) ───────────────────────────────────────────
 
 echo "Tokenizer + config..."
-fetch "$BASE/config.json"            "$OUT_DIR/config.json"
-fetch "$BASE/tokenizer.json"         "$OUT_DIR/tokenizer.json"
-fetch "$BASE/tokenizer_config.json"  "$OUT_DIR/tokenizer_config.json"
+grab "$BASE/config.json"            "$OUT_DIR/config.json"
+grab "$BASE/tokenizer.json"         "$OUT_DIR/tokenizer.json"
+grab "$BASE/tokenizer_config.json"  "$OUT_DIR/tokenizer_config.json"
 echo ""
 
-# ── model weights (~50 MB at q4) ────────────────────────────────────────────
+# ── model weights (~92 MB at q8) ────────────────────────────────────────────
 
 # Use the q8-quantized variant (model_quantized.onnx, ~92 MB). transformers.js
 # resolves dtype:'q8' to this filename. q4 was tested first and turned out to
 # be larger (~290 MB) due to outlier-weight handling, plus over GitHub's
 # 100 MB per-file limit.
 echo "Model weights (q8 ~92 MB)..."
-fetch "$BASE/onnx/model_quantized.onnx"   "$OUT_DIR/onnx/model_quantized.onnx"
-
-# Clean up any stale q4 file from earlier runs (it's much larger than q8 and
-# won't be loaded since MODEL_DTYPE is now 'q8').
-if [ -f "$OUT_DIR/onnx/model_q4.onnx" ]; then
-  echo "  ✗ removing stale q4 file (no longer used): $OUT_DIR/onnx/model_q4.onnx"
-  rm -f "$OUT_DIR/onnx/model_q4.onnx"
-fi
+grab "$BASE/onnx/model_quantized.onnx"   "$OUT_DIR/onnx/model_quantized.onnx"
 echo ""
 
 # ── voice embeddings (~1 MB each, 15 total) ─────────────────────────────────
 
 echo "Voice embeddings (15 files, ~1 MB each)..."
 for v in "${VOICES[@]}"; do
-  fetch "$BASE/voices/$v.bin"        "$OUT_DIR/voices/$v.bin"
+  grab "$BASE/voices/$v.bin"        "$OUT_DIR/voices/$v.bin"
 done
 echo ""
 
 # ── summary ─────────────────────────────────────────────────────────────────
 
-if [ "$VERIFY_ONLY" -eq 0 ]; then
+if [ "$VERIFY_ONLY" -eq 1 ]; then
+  echo "=== Verify complete ==="
+  if [ "$MISSING" -eq 0 ]; then
+    echo "All $CHECKED files present."
+  else
+    echo "$MISSING of $CHECKED files missing. Re-run without --verify to fetch them."
+    exit 1
+  fi
+else
   echo "=== Done ==="
   echo "Total size:"
   du -sh "$OUT_DIR"
