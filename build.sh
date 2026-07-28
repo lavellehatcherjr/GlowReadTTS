@@ -1,22 +1,18 @@
 #!/usr/bin/env bash
 # build.sh
 #
-# Packages the extension for Chrome Web Store submission into dist/.
+# Packages the extension into glowreadtts-<version>.zip at the repository root.
 #
-# Works from an explicit ALLOWLIST: only the paths named below are copied into
-# the archive. Anything added to the repository later is excluded until someone
-# opts it in here. That is deliberate - a denylist ships new files silently,
-# which is the wrong failure direction for an extension whose whole pitch is
-# that nothing unexpected is inside it. It also means this produces the same
-# package from any checkout, whether or not that checkout happens to carry
-# store screenshots, demo video, or social images.
+# Uses an explicit allowlist: only the paths named in ALLOW are copied. Anything
+# added to the repository later stays out until it is named here. A denylist
+# would ship new files silently, which is the wrong default.
 #
-# The archive is built from a staging copy, so the working tree is never
-# touched, and it is zipped from inside that copy so manifest.json lands at the
-# archive root rather than nested in a folder.
+# Built from a staging copy so the working tree is untouched, and zipped from
+# inside that copy so manifest.json lands at the archive root rather than nested
+# in a folder.
 #
 # Usage:
-#   bash build.sh           # build dist/glowreadtts-<version>.zip
+#   bash build.sh           # build
 #   bash build.sh --list    # show what would be included, build nothing
 
 set -e
@@ -24,7 +20,6 @@ set -u
 
 cd "$(dirname "$0")"
 
-DIST_DIR="dist"
 STAGE_DIR=""
 
 # ── what ships ──────────────────────────────────────────────────────────────
@@ -33,8 +28,8 @@ STAGE_DIR=""
 # libs/ subdirectories are listed separately rather than as libs/ so a new
 # libs/<something> does not ship by accident.
 #
-# assets/ holds marketing material in some checkouts, so only the five icons
-# manifest.json actually references are named. Never copy assets/ wholesale.
+# assets/ may hold more than icons, so only the five that manifest.json
+# references are named. Never copy assets/ wholesale.
 #
 # LICENSE and NOTICE ship because Apache 2.0 requires both accompany a
 # distribution.
@@ -65,8 +60,12 @@ ALLOW=(
 # The allowlist already excludes all of this. These patterns are a second
 # check against the built archive, so a future edit to ALLOW that lets
 # something through fails the build rather than shipping quietly.
+#
+# \.zip$ matters more than it looks: the archive is written to the repository
+# root, which is the directory the build reads from, so a careless widening of
+# ALLOW could pack the archive into itself.
 
-FORBIDDEN='^\.git|^node_modules/|^build\.sh$|^scripts/|^samples/|^dist/|\.md$|\.DS_Store$|^assets/(chrome-store|medium|post|posttoday|thumbnails)/|^assets/icon\.svg$'
+FORBIDDEN='^\.git|^node_modules/|^build\.sh$|^scripts/|^samples/|\.zip$|\.md$|\.DS_Store$|^assets/(chrome-store|medium|post|posttoday|thumbnails)/|^assets/icon\.svg$'
 
 # ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -137,7 +136,7 @@ fi
 
 VERSION="$(manifest_version)"
 ZIP_NAME="glowreadtts-${VERSION}.zip"
-ZIP_PATH="$(pwd)/$DIST_DIR/$ZIP_NAME"
+ZIP_PATH="$(pwd)/$ZIP_NAME"
 
 # Packaging uncommitted work ships something that is not in the repository.
 # Worth saying out loud, but building mid-change is legitimate, so this only
@@ -179,7 +178,7 @@ if [ "$LIST_ONLY" -eq 1 ]; then
     printf "      %-26s %s\n" "$p" "$(du -sh "$p" | cut -f1)"
   done
   echo ""
-  echo "Version: $VERSION  ->  $DIST_DIR/$ZIP_NAME (not built; --list)"
+  echo "Version: $VERSION  ->  $ZIP_NAME (not built; --list)"
   exit 0
 fi
 
@@ -189,7 +188,6 @@ echo "=== Building GlowReadTTS $VERSION ==="
 echo ""
 
 STAGE_DIR="$(mktemp -d)"
-mkdir -p "$DIST_DIR"
 rm -f "$ZIP_PATH"
 
 echo "Staging..."
@@ -210,7 +208,7 @@ echo ""
 echo "Packing..."
 ( cd "$STAGE_DIR" && zip -rq "$ZIP_PATH" . -x '.DS_Store' '*/.DS_Store' )
 [ -f "$ZIP_PATH" ] || fail "zip produced no archive."
-echo "  ✓ $DIST_DIR/$ZIP_NAME"
+echo "  ✓ $ZIP_NAME"
 echo ""
 
 # ── verify ──────────────────────────────────────────────────────────────────
@@ -260,7 +258,7 @@ UNCOMPRESSED_MB=$((UNCOMPRESSED / 1024 / 1024))
 COMPRESSED="$(du -h "$ZIP_PATH" | cut -f1)"
 
 echo "=== Done ==="
-echo "  Output:       $DIST_DIR/$ZIP_NAME"
+echo "  Output:       $ZIP_NAME"
 echo "  Version:      $VERSION"
 echo "  Files:        $FILE_COUNT"
 echo "  Uncompressed: ${UNCOMPRESSED_MB} MB"
@@ -273,5 +271,5 @@ if [ "$UNCOMPRESSED_MB" -gt 200 ]; then
   echo ""
   echo "⚠ WARNING: uncompressed size is ${UNCOMPRESSED_MB} MB, well above the"
   echo "  expected ~120 MB. Check the listing for something unintended:"
-  echo "    unzip -l $DIST_DIR/$ZIP_NAME"
+  echo "    unzip -l $ZIP_NAME"
 fi
