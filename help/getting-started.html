@@ -54,7 +54,10 @@
     <section>
       <h2>Playback, speed, and highlights</h2>
       <p>When a read starts, the popup shows three controls: <strong>Stop</strong> (halts everything immediately), <strong>Play/Pause</strong> (the larger center button), and <strong>Restart</strong> (begins the same text from the top). Audio continues even if you close the popup - reopen and press Stop to halt. The popup&rsquo;s Stop button also halts right-click reads.</p>
-      <p>The <strong>Speed slider</strong> ranges from 0.25&times; to 2&times; in 0.25 increments, defaulting to 1&times;. Changing speed mid-read stops the current read; press the entry-point button again to restart at the new speed.</p>
+      <p>During a right-click read, two buttons also appear at the top right of the page itself: <strong>Pause/Resume</strong> and <strong>Stop</strong>. They do the same thing as the popup&rsquo;s controls, so you can pause or halt a long read without opening the popup. They disappear when the read ends.</p>
+      <p>Two keyboard shortcuts cover the same ground. One reads the current selection, the other pauses or resumes. The pause shortcut works for every read, including typed or pasted text and Test Voice, where there is no page to put a button on. The popup shows the keys you currently have.</p>
+      <p>Chrome does not always assign the suggested keys when an extension installs. If a shortcut does nothing, open <code>chrome://extensions/shortcuts</code> and set it there.</p>
+      <p>The <strong>Speed slider</strong> ranges from 0.25&times; to 2&times; in 0.25 increments, defaulting to 1&times;. Changing speed mid-read does not stop the read; the new speed applies to the next one, and the status line says so.</p>
       <p>A translucent yellow <strong>highlight</strong> follows the spoken sentence on the page during right-click reads, and the page auto-scrolls to keep the active sentence in view. Highlighting doesn&rsquo;t apply to typed/pasted text or the Test Voice button (the text isn&rsquo;t on the page). If the popup closes mid-read, a 60-second watchdog clears any orphaned highlight automatically.</p>
     </section>
 
@@ -83,7 +86,8 @@
           <tr><td>Test current voice</td><td>Toolbar icon, <em>Test Voice</em></td></tr>
           <tr><td>Switch voices</td><td>Toolbar icon, Voice dropdown</td></tr>
           <tr><td>Change speed</td><td>Toolbar icon, Speed slider (0.25&times; &ndash; 2&times;)</td></tr>
-          <tr><td>Pause / resume</td><td>Toolbar icon, center playback button</td></tr>
+          <tr><td>Pause / resume</td><td>Toolbar icon, center playback button; on-page Pause button; keyboard shortcut</td></tr>
+          <tr><td>Set keyboard shortcuts</td><td><code>chrome://extensions/shortcuts</code></td></tr>
           <tr><td>Stop everything</td><td>Toolbar icon, <em>Stop</em></td></tr>
           <tr><td>Open settings</td><td>Toolbar icon, gear icon</td></tr>
           <tr><td>Re-accept the EULA</td><td>Toolbar icon, <em>Review Terms</em></td></tr>
@@ -99,6 +103,7 @@
       <p><strong>My selected voice keeps changing on its own.</strong> This happens once when your previously-saved voice is no longer available. Reasons: (1) you had a system / browser voice saved from before the AI-only migration; (2) a version upgrade retired the specific AI voice you had selected. Either way, the extension falls back to the default (<code>af_heart</code>) and persists the new choice. Pick a different voice from the dropdown if you&rsquo;d prefer; the new selection sticks.</p>
       <p><strong>Audio sounds choppy or distorted.</strong> Most often this is CPU load (close other tabs/apps) or extreme speed settings - 0.25&times; and 2&times; can introduce artifacts depending on the voice. The 0.75&times;&ndash;1.75&times; range is generally cleanest.</p>
       <p><strong>The first read of a session takes a long time before audio starts.</strong> With the <em>Performance &rarr; Pre-warm AI voice on selection</em> toggle ON (the default), the 92 MB neural model starts loading the moment you highlight text on a page, so your first right-click read usually starts in ~1&ndash;2 seconds. If you&rsquo;ve turned the toggle OFF, the model only loads when you explicitly trigger a read - so the first right-click / Read Text / Test Voice in a browser session pays a one-time ~3&ndash;6 second cold-load (longer on slower CPUs). Either way, every read after the first in the same session starts within ~1&ndash;2 seconds.</p>
+      <p><strong>A keyboard shortcut does nothing.</strong> Chrome may not have assigned it. Open <code>chrome://extensions/shortcuts</code>, find GlowReadTTS, and set the keys yourself. The popup&rsquo;s shortcut line says <em>unassigned</em> when this is the case.</p>
     </section>
 
     <section>
@@ -107,7 +112,7 @@
         <li><a href="https://github.com/lavellehatcherjr/GlowReadTTS/issues">GitHub issues</a></li>
         <li><a href="https://github.com/lavellehatcherjr/GlowReadTTS/blob/main/PRIVACY.md">Privacy Policy</a></li>
         <li><a href="https://github.com/lavellehatcherjr/GlowReadTTS/blob/main/EULA.md">Terms of Use</a></li>
-        <li><a href="https://github.com/lavellehatcherjr/GlowReadTTS/blob/main/LICENSE">License</a> (Apache 2.0)</li>
+        <li><a href="https://github.com/lavellehatcherjr/GlowReadTTS/blob/main/LICENSE">License</a> (GPL-3.0-or-later)</li>
         <li><a href="https://github.com/lavellehatcherjr/GlowReadTTS/blob/main/NOTICE">Third-party notices</a></li>
       </ul>
     </section>

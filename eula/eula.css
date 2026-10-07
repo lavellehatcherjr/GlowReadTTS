@@ -15,7 +15,7 @@
   --text-tertiary: #8A8680;
   --text-on-accent: #1A1815;
 
-  /* Brand accent (variable names are historical — values are TEAL).
+  /* Brand accent (variable names are historical; values are TEAL).
      #2A8B8B / rgb(42, 139, 139). Mirrors popup.css. */
   --brand-orange: #2A8B8B;
   --brand-orange-hover: #237575;

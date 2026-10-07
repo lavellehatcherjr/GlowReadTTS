@@ -2,7 +2,9 @@
 
 # End User License Agreement
 
-**Last Updated:** May 10, 2026
+**Last Updated:** October 8, 2026
+
+**Version:** 1.3
 
 **IMPORTANT - READ CAREFULLY BEFORE USING THIS SOFTWARE.**
 
@@ -12,13 +14,13 @@ BY CLICKING "ACCEPT & CONTINUE," YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD,
 
 ## Section 1: License Grant and Scope
 
-**1.1** The Developer grants you a limited, non-exclusive, non-transferable, revocable, royalty-free license to install and use the Software on devices running a compatible version of the Google Chrome browser, solely for lawful personal or commercial text-to-speech purposes, subject to the terms and restrictions of this Agreement.
+**1.1** This Agreement does not grant you a license to the Software. The Software is licensed to you under the GNU General Public License, version 3 or later, whose full text is distributed with the Software in the file LICENSE, and that license is the sole source of your rights to run, copy, modify and redistribute the Software. Those rights are granted for the term of copyright and are irrevocable so long as you comply with that license. This Agreement records the terms on which the Developer provides the Software, including the disclaimers and limitations below, and does not add to, reduce, or place any condition on anything the GNU General Public License grants.
 
-**1.2** The Software's source code is separately available under the Apache License 2.0. This EULA governs your use of the compiled and distributed extension obtained through the Chrome Web Store or the Developer's official GitHub repository. In the event of a conflict between this EULA and the Apache License 2.0 as applied to the source code, this EULA governs the end-user relationship for the distributed Software.
+**1.2** The Software is licensed under the GNU General Public License, version 3 or later ("GPL-3.0-or-later"). The full license text is distributed with the Software in the file LICENSE, and the third-party components it includes, with their own licenses, are listed in the NOTICE file. Those open-source licenses govern the corresponding components. Nothing in this Agreement limits, restricts, or adds any condition to a right granted to you under those licenses, and where a term of this Agreement conflicts with them, those licenses prevail.
 
 ## Section 2: Permitted Uses
 
-**2.1** You may use the Software to:
+**2.1** The GNU General Public License affirms your unlimited permission to run the Software, so this section does not limit what you may use it for. The following are examples, not an exhaustive list. You may use the Software to:
 
 - **(a)** Convert text to speech for personal reading, learning, accessibility, or productivity purposes.
 - **(b)** Use the bundled AI voice model for local, on-device text-to-speech synthesis.
@@ -26,26 +28,16 @@ BY CLICKING "ACCEPT & CONTINUE," YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD,
 
 ## Section 3: Prohibited Uses and AI Voice Restrictions
 
-**3.1** GENERAL PROHIBITIONS. You shall not use the Software to:
+**3.1** NO ADDITIONAL USE RESTRICTIONS. The Software is licensed under the GNU General Public License, version 3 or later, which affirms your unlimited permission to run it. The Developer imposes no additional restriction on running the Software. Nothing in this Agreement permits you to do anything that applicable law prohibits, and the Developer neither endorses nor accepts responsibility for any unlawful use.
 
-- **(a)** Engage in, facilitate, or promote any activity that violates applicable local, state, national, or international law.
-- **(b)** Generate speech for the purpose of fraud, scams, phishing, social engineering, or any form of deception.
-- **(c)** Impersonate any real person, living or deceased, or create audio that could reasonably be mistaken for a real person's speech without that person's explicit written consent.
-- **(d)** Create, distribute, or facilitate the creation of deepfake audio, synthetic media intended to deceive, or non-consensual voice replications.
-- **(e)** Generate speech that constitutes defamation, harassment, threats, hate speech, or incitement to violence.
-- **(f)** Generate speech that infringes on any third party's intellectual property rights, including but not limited to copyrights, trademarks, or rights of publicity.
-- **(g)** Reproduce copyrighted audio content, including but not limited to audiobooks, podcasts, music lyrics, or broadcast content.
-- **(h)** Use the Software to circumvent any access controls, paywalls, or digital rights management systems.
-- **(i)** Use the Software in any manner that violates the terms of service of any website from which text is extracted.
-- **(j)** Interfere with, disrupt, or place undue burden on any network, server, or system through use of the Software.
+ACCEPTABLE USE REQUEST. The following is a request from the Developer. It is not a condition of the license, not a term of this Agreement, and not enforceable as either. The Developer asks that you not use the Software to impersonate any real person, to create deepfake or otherwise deceptive synthetic audio, to commit fraud, to harass anyone, or to infringe anyone's rights. Nothing in this paragraph restricts any right granted to you under the GNU General Public License, and declining to honour this request is not a breach of this Agreement or of that license.
 
-**3.2** AI VOICE SPECIFIC PROHIBITIONS. The AI voice functionality included in the Software uses pre-trained neural network models that generate synthetic speech. You additionally shall not:
+**3.2** AI-GENERATED AUDIO AND APPLICABLE LAW. The AI voice functionality included in the Software uses pre-trained neural network models that generate synthetic speech. These terms concern what you do with audio the Software generates, not your use of the Software itself. You shall not:
 
 - **(a)** Use AI-generated speech to create content that violates any applicable synthetic media, deepfake, or AI transparency law, including but not limited to Japan's AI Promotion Act, the EU AI Act (Article 50), the US TAKE IT DOWN Act, state-level deepfake legislation (including but not limited to Tennessee's ELVIS Act, California's AI Transparency Act, and similar statutes in other jurisdictions), or any equivalent law in your jurisdiction.
 - **(b)** Distribute AI-generated speech without appropriate disclosure that the audio was synthetically generated, where such disclosure is required by applicable law.
 - **(c)** Use AI-generated speech to manipulate elections, deceive voters, or create false political communications.
-- **(d)** Attempt to use the Software to clone, replicate, or approximate any specific person's voice. The Software does not support voice cloning and any attempt to use it for this purpose is a violation of this Agreement.
-- **(e)** Use AI-generated speech output in any commercial product, service, or broadcast without independently verifying compliance with all applicable synthetic media and AI disclosure laws in your jurisdiction.
+- **(d)** Use AI-generated speech output in any commercial product, service, or broadcast without independently verifying compliance with all applicable synthetic media and AI disclosure laws in your jurisdiction.
 
 **3.3** COMPLIANCE RESPONSIBILITY. You are solely responsible for ensuring that your use of the Software and any speech output generated by the Software complies with all applicable laws and regulations in your jurisdiction. The Developer makes no representation that the Software or its output complies with the laws of any particular jurisdiction.
 
@@ -132,7 +124,7 @@ WHETHER ARISING OUT OF BREACH OF CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT L
 
 **10.1** This Agreement is effective until terminated. You may terminate this Agreement at any time by uninstalling the Software and destroying all copies in your possession.
 
-**10.2** The Developer may terminate this Agreement immediately, without notice, if you breach any provision of this Agreement. Upon termination, your license to use the Software is immediately revoked.
+**10.2** The Developer may terminate this Agreement immediately, without notice, if you breach any provision of this Agreement. Upon termination, the terms of this Agreement cease to apply to you. Your rights under the GNU General Public License are granted by that license and not by this Agreement, so terminating this Agreement does not affect them; they continue for so long as you comply with that license.
 
 **10.3** The Developer may, at the Developer's sole discretion, cease distribution, support, or development of the Software at any time without liability to you.
 
@@ -140,15 +132,15 @@ WHETHER ARISING OUT OF BREACH OF CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT L
 
 ## Section 11: Modifications to This Agreement
 
-**11.1** The Developer reserves the right to modify this Agreement at any time. Material changes will be communicated by presenting the updated Agreement within the Software upon your next use, requiring your acceptance of the new terms to continue using the Software.
+**11.1** The Developer may modify this Agreement at any time. Material changes will be communicated by presenting the updated Agreement within the Software, for your acceptance, the next time you use the Software. That acceptance governs this Agreement only. Your rights under the GNU General Public License are granted by that license, not by this Agreement, and do not depend on your accepting these terms.
 
 **11.2** Your continued use of the Software after acceptance of modified terms constitutes your agreement to the modified terms.
 
-**11.3** If you do not agree to modified terms, you must discontinue use of the Software and uninstall it.
+**11.3** If you do not agree to modified terms, you may stop using the Software and uninstall it. You are not required to accept this Agreement in order to possess, run, study, modify or redistribute the Software, because those rights come from the GNU General Public License rather than from this Agreement. This build presents the Agreement and asks for acceptance before its features become available; that gate is part of the Developer's build and not a condition of that license, and you remain free to modify your own copy as the license allows. Declining these terms ends the Agreement, not your rights under that license.
 
 ## Section 12: General Provisions
 
-**12.1** ENTIRE AGREEMENT. This Agreement, together with the Privacy Policy, constitutes the entire agreement between you and the Developer regarding the Software and supersedes all prior or contemporaneous agreements, representations, warranties, and understandings.
+**12.1** ENTIRE AGREEMENT. This Agreement, together with the Privacy Policy, constitutes the entire agreement between you and the Developer regarding the Software, and supersedes all prior or contemporaneous agreements, representations, warranties, and understandings between you and the Developer. It does not supersede, limit or modify the GNU General Public License or any other open-source license identified in Section 1.2 and the NOTICE file; those licenses prevail over any conflicting term here.
 
 **12.2** SEVERABILITY. If any provision of this Agreement is held to be unenforceable or invalid by a court of competent jurisdiction, that provision shall be modified to the minimum extent necessary to make it enforceable, or if modification is not possible, severed from this Agreement. All remaining provisions shall continue in full force and effect.
 

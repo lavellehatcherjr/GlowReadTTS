@@ -1,11 +1,13 @@
 'use strict';
 
-const EULA_VERSION = '1.2';
+const EULA_VERSION = '1.3';
 
 const EULA_TEXT = `
 END USER LICENSE AGREEMENT
 
-Last Updated: May 10, 2026
+Last Updated: October 8, 2026
+
+Version: 1.3
 
 IMPORTANT - READ CAREFULLY BEFORE USING THIS SOFTWARE.
 
@@ -16,14 +18,14 @@ BY CLICKING "ACCEPT & CONTINUE," YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD,
 
 SECTION 1: LICENSE GRANT AND SCOPE
 
-1.1 The Developer grants you a limited, non-exclusive, non-transferable, revocable, royalty-free license to install and use the Software on devices running a compatible version of the Google Chrome browser, solely for lawful personal or commercial text-to-speech purposes, subject to the terms and restrictions of this Agreement.
+1.1 This Agreement does not grant you a license to the Software. The Software is licensed to you under the GNU General Public License, version 3 or later, whose full text is distributed with the Software in the file LICENSE, and that license is the sole source of your rights to run, copy, modify and redistribute the Software. Those rights are granted for the term of copyright and are irrevocable so long as you comply with that license. This Agreement records the terms on which the Developer provides the Software, including the disclaimers and limitations below, and does not add to, reduce, or place any condition on anything the GNU General Public License grants.
 
-1.2 The Software's source code is separately available under the Apache License 2.0. This EULA governs your use of the compiled and distributed extension obtained through the Chrome Web Store or the Developer's official GitHub repository. In the event of a conflict between this EULA and the Apache License 2.0 as applied to the source code, this EULA governs the end-user relationship for the distributed Software.
+1.2 The Software is licensed under the GNU General Public License, version 3 or later ("GPL-3.0-or-later"). The full license text is distributed with the Software in the file LICENSE, and the third-party components it includes, with their own licenses, are listed in the NOTICE file. Those open-source licenses govern the corresponding components. Nothing in this Agreement limits, restricts, or adds any condition to a right granted to you under those licenses, and where a term of this Agreement conflicts with them, those licenses prevail.
 
 
 SECTION 2: PERMITTED USES
 
-2.1 You may use the Software to:
+2.1 The GNU General Public License affirms your unlimited permission to run the Software, so this section does not limit what you may use it for. The following are examples, not an exhaustive list. You may use the Software to:
 (a) Convert text to speech for personal reading, learning, accessibility, or productivity purposes.
 (b) Use the bundled AI voice model for local, on-device text-to-speech synthesis.
 (c) Read aloud text from webpages and text pasted or typed into the Software's interface.
@@ -31,24 +33,15 @@ SECTION 2: PERMITTED USES
 
 SECTION 3: PROHIBITED USES AND AI VOICE RESTRICTIONS
 
-3.1 GENERAL PROHIBITIONS. You shall not use the Software to:
-(a) Engage in, facilitate, or promote any activity that violates applicable local, state, national, or international law.
-(b) Generate speech for the purpose of fraud, scams, phishing, social engineering, or any form of deception.
-(c) Impersonate any real person, living or deceased, or create audio that could reasonably be mistaken for a real person's speech without that person's explicit written consent.
-(d) Create, distribute, or facilitate the creation of deepfake audio, synthetic media intended to deceive, or non-consensual voice replications.
-(e) Generate speech that constitutes defamation, harassment, threats, hate speech, or incitement to violence.
-(f) Generate speech that infringes on any third party's intellectual property rights, including but not limited to copyrights, trademarks, or rights of publicity.
-(g) Reproduce copyrighted audio content, including but not limited to audiobooks, podcasts, music lyrics, or broadcast content.
-(h) Use the Software to circumvent any access controls, paywalls, or digital rights management systems.
-(i) Use the Software in any manner that violates the terms of service of any website from which text is extracted.
-(j) Interfere with, disrupt, or place undue burden on any network, server, or system through use of the Software.
+3.1 NO ADDITIONAL USE RESTRICTIONS. The Software is licensed under the GNU General Public License, version 3 or later, which affirms your unlimited permission to run it. The Developer imposes no additional restriction on running the Software. Nothing in this Agreement permits you to do anything that applicable law prohibits, and the Developer neither endorses nor accepts responsibility for any unlawful use.
 
-3.2 AI VOICE SPECIFIC PROHIBITIONS. The AI voice functionality included in the Software uses pre-trained neural network models that generate synthetic speech. You additionally shall not:
+ACCEPTABLE USE REQUEST. The following is a request from the Developer. It is not a condition of the license, not a term of this Agreement, and not enforceable as either. The Developer asks that you not use the Software to impersonate any real person, to create deepfake or otherwise deceptive synthetic audio, to commit fraud, to harass anyone, or to infringe anyone's rights. Nothing in this paragraph restricts any right granted to you under the GNU General Public License, and declining to honour this request is not a breach of this Agreement or of that license.
+
+3.2 AI-GENERATED AUDIO AND APPLICABLE LAW. The AI voice functionality included in the Software uses pre-trained neural network models that generate synthetic speech. These terms concern what you do with audio the Software generates, not your use of the Software itself. You shall not:
 (a) Use AI-generated speech to create content that violates any applicable synthetic media, deepfake, or AI transparency law, including but not limited to Japan's AI Promotion Act, the EU AI Act (Article 50), the US TAKE IT DOWN Act, state-level deepfake legislation (including but not limited to Tennessee's ELVIS Act, California's AI Transparency Act, and similar statutes in other jurisdictions), or any equivalent law in your jurisdiction.
 (b) Distribute AI-generated speech without appropriate disclosure that the audio was synthetically generated, where such disclosure is required by applicable law.
 (c) Use AI-generated speech to manipulate elections, deceive voters, or create false political communications.
-(d) Attempt to use the Software to clone, replicate, or approximate any specific person's voice. The Software does not support voice cloning and any attempt to use it for this purpose is a violation of this Agreement.
-(e) Use AI-generated speech output in any commercial product, service, or broadcast without independently verifying compliance with all applicable synthetic media and AI disclosure laws in your jurisdiction.
+(d) Use AI-generated speech output in any commercial product, service, or broadcast without independently verifying compliance with all applicable synthetic media and AI disclosure laws in your jurisdiction.
 
 3.3 COMPLIANCE RESPONSIBILITY. You are solely responsible for ensuring that your use of the Software and any speech output generated by the Software complies with all applicable laws and regulations in your jurisdiction. The Developer makes no representation that the Software or its output complies with the laws of any particular jurisdiction.
 
@@ -138,7 +131,7 @@ SECTION 10: TERMINATION
 
 10.1 This Agreement is effective until terminated. You may terminate this Agreement at any time by uninstalling the Software and destroying all copies in your possession.
 
-10.2 The Developer may terminate this Agreement immediately, without notice, if you breach any provision of this Agreement. Upon termination, your license to use the Software is immediately revoked.
+10.2 The Developer may terminate this Agreement immediately, without notice, if you breach any provision of this Agreement. Upon termination, the terms of this Agreement cease to apply to you. Your rights under the GNU General Public License are granted by that license and not by this Agreement, so terminating this Agreement does not affect them; they continue for so long as you comply with that license.
 
 10.3 The Developer may, at the Developer's sole discretion, cease distribution, support, or development of the Software at any time without liability to you.
 
@@ -147,16 +140,16 @@ SECTION 10: TERMINATION
 
 SECTION 11: MODIFICATIONS TO THIS AGREEMENT
 
-11.1 The Developer reserves the right to modify this Agreement at any time. Material changes will be communicated by presenting the updated Agreement within the Software upon your next use, requiring your acceptance of the new terms to continue using the Software.
+11.1 The Developer may modify this Agreement at any time. Material changes will be communicated by presenting the updated Agreement within the Software, for your acceptance, the next time you use the Software. That acceptance governs this Agreement only. Your rights under the GNU General Public License are granted by that license, not by this Agreement, and do not depend on your accepting these terms.
 
 11.2 Your continued use of the Software after acceptance of modified terms constitutes your agreement to the modified terms.
 
-11.3 If you do not agree to modified terms, you must discontinue use of the Software and uninstall it.
+11.3 If you do not agree to modified terms, you may stop using the Software and uninstall it. You are not required to accept this Agreement in order to possess, run, study, modify or redistribute the Software, because those rights come from the GNU General Public License rather than from this Agreement. This build presents the Agreement and asks for acceptance before its features become available; that gate is part of the Developer's build and not a condition of that license, and you remain free to modify your own copy as the license allows. Declining these terms ends the Agreement, not your rights under that license.
 
 
 SECTION 12: GENERAL PROVISIONS
 
-12.1 ENTIRE AGREEMENT. This Agreement, together with the Privacy Policy, constitutes the entire agreement between you and the Developer regarding the Software and supersedes all prior or contemporaneous agreements, representations, warranties, and understandings.
+12.1 ENTIRE AGREEMENT. This Agreement, together with the Privacy Policy, constitutes the entire agreement between you and the Developer regarding the Software, and supersedes all prior or contemporaneous agreements, representations, warranties, and understandings between you and the Developer. It does not supersede, limit or modify the GNU General Public License or any other open-source license identified in Section 1.2 and the NOTICE file; those licenses prevail over any conflicting term here.
 
 12.2 SEVERABILITY. If any provision of this Agreement is held to be unenforceable or invalid by a court of competent jurisdiction, that provision shall be modified to the minimum extent necessary to make it enforceable, or if modification is not possible, severed from this Agreement. All remaining provisions shall continue in full force and effect.
 
@@ -176,7 +169,7 @@ SECTION 12: GENERAL PROVISIONS
 const PRIVACY_TEXT = `
 PRIVACY POLICY
 
-Last Updated: July 28, 2026
+Last Updated: October 8, 2026
 
 Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS browser extension ("Software"). This Privacy Policy describes how we handle information when you use the Software. By using the Software, you agree to the practices described in this Privacy Policy.
 
@@ -209,7 +202,7 @@ SECTION 3: DATA STORED LOCALLY ON YOUR DEVICE
 (b) EULA/Privacy Policy acceptance state (chrome.storage.local) - records that you accepted these terms, the version accepted, and the date of acceptance.
 (c) Selection-prewarm preference (chrome.storage.local) - a single boolean (prewarmOnSelection) that controls whether the AI voice model preloads when you select text on a page. Stored only on this device - never syncs to any server.
 (d) Session text for playback continuity (sessionStorage) - temporarily stores the most recently read text. This is automatically cleared when the popup is closed.
-(e) Transient internal state flags (chrome.storage.session) - a small set of booleans (playbackActive, aiPrewarmReady, offscreenReady) used internally to surface the "Reading in progress" banner when the popup reopens during an active read, to track whether the AI voice model has finished loading for the current browser session, and to coordinate the Software's own components. Individual flags are cleared as soon as they are no longer needed (for example, playbackActive is cleared when audio ends or is stopped), and all of them are cleared automatically when the browser closes. These flags contain no user content or identifying information.
+(e) Transient internal state flags (chrome.storage.session) - a small set of booleans (playbackActive, playbackPaused, aiPrewarmReady) used internally to surface the "Reading in progress" banner when the popup reopens during an active read, to track whether the AI voice model has finished loading for the current browser session, and to coordinate the Software's own components. Individual flags are cleared as soon as they are no longer needed (for example, playbackActive is cleared when audio ends or is stopped), and all of them are cleared automatically when the browser closes. These flags contain no user content or identifying information.
 
 3.2 No data stored by the Software is accessible to other extensions, websites, or applications. Chrome's storage APIs are sandboxed to the extension's unique origin.
 
@@ -239,7 +232,7 @@ SECTION 5: PERMISSIONS JUSTIFICATION
 
 SECTION 6: THIRD-PARTY SERVICES
 
-6.1 Google Chrome APIs: The Software uses Chrome's built-in APIs (chrome.storage, chrome.contextMenus, chrome.scripting, chrome.offscreen, chrome.notifications). These APIs are provided by Google and subject to Google's terms of service and privacy policy. The Developer is not responsible for how Chrome or Google handles data processed through these APIs. The Software does NOT use Chrome's chrome.tts API and does NOT send any text to remote / network speech engines.
+6.1 Google Chrome APIs: The Software uses Chrome's built-in APIs (chrome.storage, chrome.contextMenus, chrome.scripting, chrome.offscreen, chrome.notifications, chrome.commands). These APIs are provided by Google and subject to Google's terms of service and privacy policy. The Developer is not responsible for how Chrome or Google handles data processed through these APIs. The Software does NOT use Chrome's chrome.tts API and does NOT send any text to remote / network speech engines.
 
 
 SECTION 7: CHILDREN'S PRIVACY

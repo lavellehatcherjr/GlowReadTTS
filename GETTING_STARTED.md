@@ -44,7 +44,13 @@ Inference streams sentence-by-sentence: audio starts within ~1–2 seconds of cl
 
 When a read starts, the popup shows three controls: **Stop** (halts everything immediately), **Play/Pause** (the larger center button), and **Restart** (begins the same text from the top). Audio continues even if you close the popup - reopen and press Stop to halt. The popup's Stop button also halts right-click reads.
 
-The **Speed slider** ranges from 0.25× to 2× in 0.25 increments, defaulting to 1×. Changing speed mid-read stops the current read; press the entry-point button again to restart at the new speed.
+During a right-click read, two buttons also appear at the top right of the page itself: **Pause/Resume** and **Stop**. They do the same thing as the popup's controls, so you can pause or halt a long read without opening the popup. They disappear when the read ends.
+
+Two keyboard shortcuts cover the same ground. One reads the current selection, the other pauses or resumes. The pause shortcut works for every read, including typed or pasted text and Test Voice, where there is no page to put a button on. The popup shows the keys you currently have.
+
+Chrome does not always assign the suggested keys when an extension installs. If a shortcut does nothing, open `chrome://extensions/shortcuts` and set it there.
+
+The **Speed slider** ranges from 0.25× to 2× in 0.25 increments, defaulting to 1×. Changing speed mid-read does not stop the read; the new speed applies to the next one, and the status line says so.
 
 A translucent yellow **highlight** follows the spoken sentence on the page during right-click reads, and the page auto-scrolls to keep the active sentence in view. Highlighting doesn't apply to typed/pasted text or the Test Voice button (the text isn't on the page). If the popup closes mid-read, a 60-second watchdog clears any orphaned highlight automatically.
 
@@ -70,7 +76,8 @@ GlowReadTTS doesn't collect any data, doesn't track you, and doesn't require an 
 | Test current voice | Toolbar icon, *Test Voice* |
 | Switch voices | Toolbar icon, Voice dropdown |
 | Change speed | Toolbar icon, Speed slider (0.25× - 2×) |
-| Pause / resume | Toolbar icon, center playback button |
+| Pause / resume | Toolbar icon, center playback button; on-page Pause button; keyboard shortcut |
+| Set keyboard shortcuts | `chrome://extensions/shortcuts` |
 | Stop everything | Toolbar icon, *Stop* |
 | Open settings | Toolbar icon, gear icon |
 | Re-accept the EULA | Toolbar icon, *Review Terms* |
@@ -89,10 +96,12 @@ GlowReadTTS doesn't collect any data, doesn't track you, and doesn't require an 
 
 **The first read of a session takes a long time before audio starts.** With the *Performance → Pre-warm AI voice on selection* toggle ON (the default), the 92 MB neural model starts loading the moment you highlight text on a page, so your first right-click read usually starts in ~1–2 seconds. If you've turned the toggle OFF, the model only loads when you explicitly trigger a read - so the first right-click / Read Text / Test Voice in a browser session pays a one-time ~3–6 second cold-load (longer on slower CPUs). Either way, every read after the first in the same session starts within ~1–2 seconds.
 
+**A keyboard shortcut does nothing.** Chrome may not have assigned it. Open `chrome://extensions/shortcuts`, find GlowReadTTS, and set the keys yourself. The popup's shortcut line says *unassigned* when this is the case.
+
 ## Where to get help
 
 - [GitHub issues](https://github.com/lavellehatcherjr/GlowReadTTS/issues)
 - [Privacy Policy](PRIVACY.md)
 - [Terms of Use](EULA.md)
-- [License](LICENSE) (Apache 2.0)
+- [License](LICENSE) (GPL-3.0-or-later)
 - [Third-party notices](NOTICE)

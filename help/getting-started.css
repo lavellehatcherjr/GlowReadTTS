@@ -14,7 +14,7 @@
   --text-secondary: #6B6864;
   --text-tertiary: #8A8680;
 
-  /* Brand accent (variable names are historical — values are TEAL).
+  /* Brand accent (variable names are historical; values are TEAL).
      #2A8B8B / rgb(42, 139, 139). Mirrors popup.css. */
   --brand-orange: #2A8B8B;
   --brand-orange-hover: #237575;
@@ -181,7 +181,7 @@ a:focus-visible {
   border-radius: 2px;
 }
 
-/* Quick start callout — the visual hero of the page so first-time
+/* Quick start callout, the visual hero of the page so first-time
    users immediately see how to trigger a read. Card with a teal left
    accent bar and big numbered badges. */
 
@@ -206,7 +206,7 @@ a:focus-visible {
 }
 
 .quick-start h2 {
-  /* Override the default section h2 (top border + serif) — this card
+  /* Override the default section h2 (top border + serif); this card
      is the page's hero, not a generic section heading. */
   border-top: none !important;
   padding-top: 0 !important;
@@ -258,7 +258,7 @@ a:focus-visible {
 }
 
 /* Override the global li::marker (which colors numbered list bullets)
-   for the steps inside this card — we render our own badges. */
+   for the steps inside this card; we render our own badges. */
 .quick-start-steps li::marker {
   color: transparent;
 }

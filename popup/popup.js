@@ -1,5 +1,6 @@
 /**
- * GlowReadTTS Popup - Complete Version with Working Selection
+ * GlowReadTTS popup. Owns the typed-text and Test Voice reads; both play in
+ * the offscreen document so audio survives the popup closing.
  */
 
 console.log('[GlowReadTTS] Popup script starting...');
@@ -8,7 +9,6 @@ console.log('[GlowReadTTS] Popup script starting...');
 // Mirrors background/service-worker.js's default for the right-click path.
 const DEFAULT_AI_VOICE = 'ai:af_heart';
 
-// Global state
 const state = {
   isPlaying: false,
   isPaused: false,
@@ -18,7 +18,7 @@ const state = {
   shouldHighlight: false,  // true when reading page/selection text (enables highlight-as-you-read)
   // True once the service worker reports the offscreen kokoro worker has
   // finished INIT + warmup. Read from chrome.storage.session (set by the SW)
-  // so it's accurate no matter who triggered the prewarm — popup open, voice
+  // so it's accurate no matter who triggered the prewarm: popup open, voice
   // switch, or the content script's selection ping before the popup existed.
   // Drives the status text's "preparing the voice" vs "generating speech"
   // distinction; nothing else depends on it.
@@ -67,6 +67,18 @@ function setupPlaybackStateSync() {
       if (changes.aiPrewarmReady) {
         state.aiPrewarmReady = changes.aiPrewarmReady.newValue === true;
       }
+      // An external pause, from the on-page button or the keyboard, has to
+      // reach an ALREADY OPEN popup. Handled before the playbackActive guard
+      // below, which returns early and would otherwise drop this change.
+      // Only meaningful while this popup believes a read is running.
+      if (changes.playbackPaused && state.isPlaying) {
+        const paused = changes.playbackPaused.newValue === true;
+        if (paused !== state.isPaused) {
+          state.isPaused = paused;
+          updatePlayButton(paused ? 'paused' : 'playing');
+          updateStatus(paused ? 'Paused' : 'Reading...');
+        }
+      }
       if (!changes.playbackActive) return;
       const isActive = changes.playbackActive.newValue === true;
       if (isActive) return; // start events update the UI directly elsewhere
@@ -83,7 +95,7 @@ function setupPlaybackStateSync() {
 }
 
 function handleRemotePlaybackEnded() {
-  // Banner reflects "is something reading right now"; hide it.
+  // The banner tracks "is something reading right now", so an ended read hides it.
   const banner = document.getElementById('stop-reading-banner');
   if (banner) banner.classList.remove('visible');
 
@@ -105,7 +117,7 @@ function handleRemotePlaybackEnded() {
 // later read pays only inference time.
 //
 // Reuses the exact WARM_AI_VOICE message the content script sends on text
-// selection — one prewarm path, not two. The SW's prewarmOffscreenIfAIVoice()
+// selection: one prewarm path, not two. The SW's prewarmOffscreenIfAIVoice()
 // is in-flight de-duplicated, so firing this alongside a selection-triggered
 // prewarm collapses to a single model load rather than doubling it.
 //
@@ -163,7 +175,7 @@ async function getVoiceCatalog() {
   return voiceCatalog;
 }
 
-// Inline Lucide SVG icons (MIT) - keeps UI consistent across OS emoji renderers.
+// Inline Lucide SVG icons (ISC; the Feather-derived ones are MIT, see NOTICE) - keeps UI consistent across OS emoji renderers.
 // Only static literals defined here; safe to assign via innerHTML.
 const icons = {
   volume: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
@@ -178,13 +190,10 @@ const icons = {
   settings: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>'
 };
 
-// Wrap everything in try-catch to see errors
 try {
-  // Initialize when DOM ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializePopup);
   } else {
-    // DOM already loaded
     initializePopup();
   }
 } catch (error) {
@@ -194,9 +203,9 @@ try {
 
 // Bumping this constant forces all users to re-accept the EULA on next launch.
 // MUST stay in lockstep with EULA_VERSION in eula/eula.js and CURRENT_EULA_VERSION
-// in background/service-worker.js — when these drift, the popup treats a
+// in background/service-worker.js, when these drift, the popup treats a
 // freshly-accepted EULA as not-accepted and shows the EULA gate forever.
-const CURRENT_EULA_VERSION = '1.2';
+const CURRENT_EULA_VERSION = '1.3';
 
 async function initializePopup() {
   try {
@@ -208,7 +217,6 @@ async function initializePopup() {
       return;
     }
 
-    // First check if container exists
     const container = document.getElementById('popup-container');
     if (!container) {
       console.error('[GlowReadTTS] Container not found!');
@@ -223,7 +231,7 @@ async function initializePopup() {
     await loadSavedSettings();
 
     // Prewarm the model now. Opening the popup is a strong intent signal, and
-    // the user then spends seconds choosing a voice and speed — dead time that
+    // the user then spends seconds choosing a voice and speed, dead time that
     // absorbs the load instead of stacking on top of it. Without this, a read
     // started from the popup (Read Text / Test Voice) with no prior page
     // selection pays the whole 3–12 s cold path on the click, while a
@@ -280,18 +288,26 @@ async function createStopReadingBanner() {
   container.insertBefore(banner, container.firstChild);
 
   try {
-    const result = await chrome.storage.session.get('playbackActive');
+    const result = await chrome.storage.session.get(['playbackActive', 'playbackPaused']);
     if (result.playbackActive) {
       banner.classList.add('visible');
+      // A read can be paused from the page or the keyboard with this popup
+      // closed, so reopening must not assume 'playing'. offscreen.js is the
+      // only writer of playbackPaused, so this is the true state.
+      const paused = result.playbackPaused === true;
       // Reflect the cross-context read in popup state so the play/pause
       // button is reachable. Without this, the user could only Stop a
       // right-click read from the popup. handlePlayPause forwards
       // OFFSCREEN_PAUSE / OFFSCREEN_RESUME, which works regardless of
       // which context started the read.
       state.isPlaying = true;
-      state.isPaused = false;
-      updatePlayButton('playing');
+      state.isPaused = paused;
+      updatePlayButton(paused ? 'paused' : 'playing');
       showPlaybackControls();
+      // Without this the banner says "Reading in progress" while the status
+      // line directly below it still shows its initial "Ready". Nothing later
+      // on the init path writes the status line, so this is not clobbered.
+      updateStatus(paused ? 'Paused' : 'Reading...');
     }
   } catch (e) {
     // chrome.storage.session unavailable; banner stays hidden.
@@ -401,9 +417,9 @@ async function createUI() {
       <!-- Text Input Area -->
       <div class="text-input-section">
         <div class="section-header">
-          <label class="section-label">${icons.textCursor} Paste or Type Text</label>
+          <label class="section-label" for="text-input">${icons.textCursor} Paste or Type Text</label>
           <div class="text-controls">
-            <button id="btn-clear-text" class="text-btn" title="Clear text">${icons.trash}</button>
+            <button id="btn-clear-text" class="text-btn" title="Clear text" aria-label="Clear text">${icons.trash}</button>
             <button id="btn-help" class="text-btn" title="Help &amp; Getting Started" aria-label="Help">${icons.help}</button>
           </div>
         </div>
@@ -419,16 +435,26 @@ async function createUI() {
           </button>
           <span id="char-count" class="char-count">0 characters</span>
         </div>
+        <!-- Filled from chrome.commands.getAll(). Never a hardcoded chord: the
+             user may rebind at any time, and another extension may already hold
+             the suggested one, in which case Chrome registers nothing. -->
+        <div id="shortcut-hint" class="shortcut-hint"></div>
       </div>
 
       <!-- Playback Controls (shown when playing) -->
       <div id="playback-section" class="playback-section">
         <div class="playback-controls">
-          <button id="btn-stop" class="control-btn" title="Stop">${icons.stop}</button>
-          <button id="btn-play-pause" class="control-btn primary" title="Play/Pause">${icons.pause}</button>
-          <button id="btn-restart" class="control-btn" title="Restart">${icons.restart}</button>
+          <button id="btn-stop" class="control-btn" title="Stop" aria-label="Stop reading">${icons.stop}</button>
+          <button id="btn-play-pause" class="control-btn primary" title="Pause" aria-label="Pause reading">${icons.pause}</button>
+          <button id="btn-restart" class="control-btn" title="Restart" aria-label="Restart reading from the beginning">${icons.restart}</button>
         </div>
         <div id="status-text" class="status-text">Ready</div>
+        <!-- Screen-reader mirror of the status line. The visible element above
+             also carries the elapsed-seconds cue, which rewrites it twice a
+             second during a model load; a live region there would announce a
+             new number every second. Only discrete status changes reach this
+             one, so each is spoken exactly once. -->
+        <div id="status-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
       </div>
 
       <!-- Quick Actions -->
@@ -454,7 +480,7 @@ async function createUI() {
       <div class="settings-section">
         <!-- Voice Selection -->
         <div class="setting-group">
-          <label class="setting-label">Voice</label>
+          <label class="setting-label" for="voice-select">Voice</label>
           <select id="voice-select" class="select-input">
             ${aiVoicesOptgroups}
           </select>
@@ -462,7 +488,7 @@ async function createUI() {
 
         <!-- Speed Control -->
         <div class="setting-group">
-          <label class="setting-label">Speed</label>
+          <label class="setting-label" for="speed-slider">Speed</label>
           <div class="speed-control">
             <input type="range" id="speed-slider" class="speed-slider"
                    min="0.25" max="2" step="0.25" value="1">
@@ -480,12 +506,12 @@ function setupEventListeners() {
   try {
     console.log('[GlowReadTTS] Setting up event listeners...');
     
-    // Text input controls
     const textInput = document.getElementById('text-input');
     if (textInput) {
       textInput.addEventListener('input', handleTextInput);
     }
     
+    renderShortcutHint();
     const readBtn = document.getElementById('btn-read-text');
     if (readBtn) {
       readBtn.addEventListener('click', handleReadText);
@@ -501,7 +527,6 @@ function setupEventListeners() {
       helpBtn.addEventListener('click', handleHelpClick);
     }
     
-    // Playback controls
     const playPauseBtn = document.getElementById('btn-play-pause');
     if (playPauseBtn) {
       playPauseBtn.addEventListener('click', handlePlayPause);
@@ -517,10 +542,9 @@ function setupEventListeners() {
       restartBtn.addEventListener('click', handleRestart);
     }
     
-    // Action buttons
     const helpActionBtn = document.getElementById('btn-help-action');
     if (helpActionBtn) {
-      // Reuses handleHelpClick — same target as the smaller question-mark
+      // Reuses handleHelpClick, same target as the smaller question-mark
       // icon next to the textarea, just exposed as a Quick Action for
       // discoverability.
       helpActionBtn.addEventListener('click', handleHelpClick);
@@ -536,7 +560,6 @@ function setupEventListeners() {
       settingsBtn.addEventListener('click', handleSettings);
     }
     
-    // Voice and speed
     const voiceSelect = document.getElementById('voice-select');
     if (voiceSelect) {
       voiceSelect.addEventListener('change', handleVoiceChange);
@@ -548,7 +571,7 @@ function setupEventListeners() {
     }
 
     // Closing the popup tears down this document and its timers with it, so
-    // this is belt-and-braces rather than a real leak fix — but it keeps the
+    // this is belt-and-braces rather than a real leak fix, but it keeps the
     // elapsed cue's lifecycle explicit alongside the paths that clear it.
     window.addEventListener('pagehide', stopElapsedStatus);
 
@@ -558,7 +581,6 @@ function setupEventListeners() {
   }
 }
 
-// Text Input Handlers
 function handleTextInput(e) {
   const text = e.target.value;
   state.currentText = text;
@@ -646,7 +668,7 @@ function handlePlayPause() {
 function handleStop() {
   // AI audio (popup-driven OR right-click) lives in the offscreen document.
   // OFFSCREEN_STOP tells it to stop the audio queue, post ABORT to its
-  // kokoro worker, and send OFFSCREEN_ENDED back to the SW — which relays
+  // kokoro worker, and send OFFSCREEN_ENDED back to the SW, which relays
   // STOP_HIGHLIGHT to the active tab. The offscreen keeps its model warm
   // across reads; we deliberately do NOT dispose it here (disposing would
   // force a 3–8 s reload on the next click).
@@ -687,7 +709,6 @@ function handleRestart() {
   }
 }
 
-// Action Button Handlers
 function handleTestVoice() {
   setSelectedButton('btn-test');
   state.shouldHighlight = false;  // Test text isn't on the page
@@ -702,7 +723,6 @@ function handleSettings() {
   chrome.runtime.openOptionsPage();
 }
 
-// Voice and Speed Handlers
 async function handleVoiceChange(e) {
   const previousVoice = state.currentVoice;
   state.currentVoice = e.target.value;
@@ -718,7 +738,7 @@ async function handleVoiceChange(e) {
   }
 
   // Switching the dropdown to an AI voice is explicit intent, same as opening
-  // the popup with one already saved — so prewarm on that transition too.
+  // the popup with one already saved, so prewarm on that transition too.
   // Only on non-AI -> AI: once the worker is warm, a second prewarm is a
   // no-op (the offscreen resolves immediately on mgr.ready), so firing it
   // when moving between two AI voices would just be a wasted round-trip.
@@ -738,12 +758,18 @@ async function handleSpeedChange(e) {
   const settings = stored.settings || {};
   await chrome.storage.sync.set({ settings: { ...settings, speed: state.currentSpeed } });
 
+  // Speed is a parameter of the generate call, so audio already in flight was
+  // produced at the old rate and cannot be re-timed without regenerating from
+  // the current sentence, which is audio-path work. Let the read finish rather
+  // than killing it, and say when the new value takes effect. Nothing records
+  // the speed the in-flight read used, so no state can disagree with the
+  // slider; the next real playback event overwrites this note.
   if (state.isPlaying) {
-    handleStop();
+    updateStatus('Speed applies to the next read');
   }
 }
 
-// Main TTS Function. AI-only — every voice in the catalog is an `ai:*` id,
+// Main TTS Function. AI-only: every voice in the catalog is an `ai:*` id,
 // played in the offscreen document. Supersession of an in-flight read is
 // handled by KokoroManager.generate() inside the offscreen, so we don't
 // need to send OFFSCREEN_STOP from here (doing so would race the new
@@ -754,7 +780,6 @@ function speakText(text) {
 
   notifyPlaybackStarted('popup-speakText');
 
-  // Stop any existing highlight before starting new speech
   sendHighlightMessage('STOP_HIGHLIGHT');
 
   sessionStorage.setItem('lastText', text);
@@ -775,7 +800,7 @@ function speakText(text) {
 async function useAIVoiceTTS(text) {
   // Say which wait this actually is. If the prewarm hasn't reported ready,
   // the click landed before the model finished loading and the user is about
-  // to wait seconds for the model, not for their sentence — "Generating
+  // to wait seconds for the model, not for their sentence; "Generating
   // speech..." would be a lie and reads as a hang. Either way an elapsed
   // counter appears after ~1.5 s so the popup never looks frozen.
   startElapsedStatus(state.aiPrewarmReady
@@ -800,7 +825,7 @@ async function useAIVoiceTTS(text) {
     // Route through the service worker → offscreen document. The offscreen
     // owns the warm kokoro worker (survives popup close) and its
     // OFFSCREEN_GENERATE_AND_PLAY handler now resolves on the FIRST
-    // streamed chunk's play(), not after the full paragraph generates —
+    // streamed chunk's play(), not after the full paragraph generates,
     // so this await returns once audio actually starts.
     const reply = await chrome.runtime.sendMessage({
       target: 'service-worker',
@@ -817,7 +842,7 @@ async function useAIVoiceTTS(text) {
 
     // Aborted = a newer generate superseded ours, or the user clicked stop
     // while we were still waiting for the first chunk. The newer flow (or
-    // stop handler) is responsible for the UI; we just bail — but drop our
+    // stop handler) is responsible for the UI; we just bail, but drop our
     // elapsed cue first so it can't keep counting under whatever status
     // text that other flow just wrote.
     if (reply.aborted) {
@@ -832,7 +857,7 @@ async function useAIVoiceTTS(text) {
     // Cross-context end-of-playback UI (button → stopped, status →
     // "Finished", hide controls) is driven by the chrome.storage.onChanged
     // listener on `playbackActive`. The SW clears that flag on
-    // OFFSCREEN_ENDED — set when the offscreen's ChunkedAudio finishes
+    // OFFSCREEN_ENDED, set when the offscreen's ChunkedAudio finishes
     // its last chunk OR when the user stopped.
   } catch (error) {
     console.error('[GlowReadTTS] AI voice error:', error);
@@ -848,7 +873,8 @@ async function useAIVoiceTTS(text) {
   }
 }
 
-// Send highlight message to content script (best-effort, non-blocking)
+// Best-effort and never awaited: a page that cannot take the message must not
+// hold up speech.
 async function sendHighlightMessage(action, data) {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -861,11 +887,9 @@ async function sendHighlightMessage(action, data) {
       });
     }
   } catch (e) {
-    // Highlight is best-effort - never fail TTS due to highlight messaging
   }
 }
 
-// UI Helper Functions
 function showPlaybackControls() {
   const section = document.getElementById('playback-section');
   if (section) {
@@ -880,22 +904,77 @@ function hidePlaybackControls() {
   }
 }
 
+/**
+ * Show the real keyboard shortcuts, read from Chrome rather than assumed.
+ *
+ * getAll() returns every command with its CURRENT binding, which is empty when
+ * the user cleared it or when another extension already held the suggested
+ * chord. An empty binding means the command did not register, so say it is
+ * unassigned instead of advertising a dead key.
+ */
+async function renderShortcutHint() {
+  const el = document.getElementById('shortcut-hint');
+  if (!el) return;
+  if (!chrome.commands || !chrome.commands.getAll) return;
+  let cmds = [];
+  try { cmds = await chrome.commands.getAll(); } catch (e) { return; }
+  const find = (name) => {
+    const c = cmds.find(x => x.name === name);
+    return c && c.shortcut ? c.shortcut : '';
+  };
+  const read = find('read-selection');
+  const pause = find('toggle-pause');
+  const parts = [];
+  parts.push(read ? `Read selection: ${read}` : 'Read selection: shortcut unassigned');
+  parts.push(pause ? `Pause or resume: ${pause}` : 'Pause or resume: shortcut unassigned');
+
+  el.textContent = '';
+  const line = document.createElement('div');
+  line.textContent = parts.join(' \u00b7 ');
+  el.appendChild(line);
+
+  // chrome:// URLs cannot be opened from a content script, but an extension
+  // page usually can via tabs.create. If it is blocked, leave the path as
+  // selectable text so the user can copy it.
+  const link = document.createElement('button');
+  link.type = 'button';
+  link.className = 'shortcut-link';
+  link.textContent = 'Change shortcuts';
+  link.addEventListener('click', () => {
+    try {
+      chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+    } catch (e) {
+      link.replaceWith(document.createTextNode('chrome://extensions/shortcuts'));
+    }
+  });
+  el.appendChild(link);
+}
+
 function updatePlayButton(status) {
   const btn = document.getElementById('btn-play-pause');
   if (!btn) return;
 
   switch (status) {
+    // aria-label and title are set on the ELEMENT, not written into the
+    // markup innerHTML replaces, so they survive every state change. A user
+    // who cannot see the glyph otherwise cannot tell which action this does.
     case 'playing':
       btn.innerHTML = icons.pause;
       btn.classList.add('playing');
+      btn.setAttribute('aria-label', 'Pause reading');
+      btn.title = 'Pause';
       break;
     case 'paused':
       btn.innerHTML = icons.play;
       btn.classList.remove('playing');
+      btn.setAttribute('aria-label', 'Resume reading');
+      btn.title = 'Resume';
       break;
     case 'stopped':
       btn.innerHTML = icons.play;
       btn.classList.remove('playing');
+      btn.setAttribute('aria-label', 'Start reading');
+      btn.title = 'Play';
       break;
   }
 }
@@ -907,12 +986,25 @@ function updatePlayButton(status) {
 function updateStatus(text) {
   stopElapsedStatus();
   setStatusText(text);
+  announceStatus(text);
 }
 
 function setStatusText(text) {
   const statusEl = document.getElementById('status-text');
   if (statusEl) {
     statusEl.textContent = text;
+  }
+}
+
+// Screen-reader announcement, deliberately NOT folded into setStatusText.
+// setStatusText is also the elapsed cue's write path and runs twice a second,
+// so a live region fed from there would read out a new number every second,
+// which is worse than the silence it replaces. Only callers that represent a
+// real change of state reach this.
+function announceStatus(text) {
+  const liveEl = document.getElementById('status-live');
+  if (liveEl) {
+    liveEl.textContent = text;
   }
 }
 
@@ -930,6 +1022,8 @@ const ELAPSED_CUE_DELAY_MS = 1500;
 function startElapsedStatus(baseText) {
   stopElapsedStatus();
   setStatusText(baseText);
+  // Announced once, here. The interval below writes only the visible element.
+  announceStatus(baseText);
   const startedAt = Date.now();
   state.statusTimer = setInterval(() => {
     const elapsed = Date.now() - startedAt;
@@ -959,7 +1053,6 @@ function setSelectedButton(buttonId) {
   }
 }
 
-// Load saved settings
 async function loadSavedSettings() {
   try {
     const savedText = sessionStorage.getItem('glowreadtts-text');

@@ -6,7 +6,7 @@
  */
 
 :root {
-  /* Yellow background + teal edge — classic mid-century complementary
+  /* Yellow background + teal edge, classic mid-century complementary
      pairing that reads as "active sentence" without competing with
      page chrome. Matches the brand teal (#2A8B8B) used in the popup. */
   --highlight-bg: rgba(244, 208, 96, 0.45);
@@ -127,10 +127,12 @@
    On-page Stop button
    Appears top-right of viewport when audio starts on a right-click
    read; clicking it tears down playback without opening the popup.
-   Same defensive CSS posture as the loading pill — !important on
+   Same defensive CSS posture as the loading pill: !important on
    every property so page CSS can't override the layout/colors.
    ============================================ */
-.glowreadtts-stop-btn {
+/* The control group. Two separately fixed elements would not lay out as a
+   group, so the fixed positioning lives here and the buttons sit inside. */
+.glowreadtts-controls {
   position: fixed !important;
   top: 16px !important;
   right: 16px !important;
@@ -139,6 +141,19 @@
      practice they never overlap because the pill auto-hides on
      first SENTENCE_START. */
   z-index: 2147483646 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  pointer-events: none !important;
+  background: none !important;
+  border: 0 !important;
+}
+
+.glowreadtts-stop-btn {
+  position: static !important;
   margin: 0 !important;
   padding: 10px 14px !important;
   background: #2A8B8B !important;
@@ -207,4 +222,50 @@
     color: ButtonText !important;
     border: 2px solid ButtonText !important;
   }
+}
+
+/* Pause / resume toggle. Same skin as Stop, square because it is icon only. */
+.glowreadtts-pause-btn {
+  position: static !important;
+  margin: 0 !important;
+  padding: 10px !important;
+  background: #2A8B8B !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
+  pointer-events: auto !important;
+  user-select: none !important;
+  opacity: 0 !important;
+  transform: translateY(-4px) !important;
+  transition: opacity 200ms ease, transform 200ms ease, background 100ms ease !important;
+  outline: 0 !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+
+.glowreadtts-pause-btn.glowreadtts-visible {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+.glowreadtts-pause-btn:hover {
+  background: #237575 !important;
+  transform: translateY(-1px) !important;
+}
+
+.glowreadtts-pause-btn:active {
+  background: #1F6E6E !important;
+  transform: translateY(0) !important;
+}
+
+.glowreadtts-pause-icon {
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+  flex: none !important;
 }

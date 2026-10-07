@@ -15,6 +15,17 @@
 #
 # Requires: curl, ~96 MB free disk, network access to huggingface.co.
 #
+# NOT fetched by this script: the ONNX Runtime Web files under libs/onnx/.
+# They are vendored separately and recorded here so their source is written down
+# somewhere. Both are byte-identical to the files in the dist/ directory of the
+# npm package onnxruntime-web@1.22.0-dev.20250409-89f8206ba4
+# (MIT License, Copyright (c) Microsoft Corporation):
+#
+#   libs/onnx/ort-wasm-simd-threaded.jsep.mjs    44,484 bytes
+#   libs/onnx/ort-wasm-simd-threaded.jsep.wasm   21,596,019 bytes
+#
+# The same package and version is recorded in NOTICE. Keep the two in step.
+#
 # Usage:
 #   bash scripts/fetch-kokoro-model.sh           # download everything
 #   bash scripts/fetch-kokoro-model.sh --verify  # check existing files only

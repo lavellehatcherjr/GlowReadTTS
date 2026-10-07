@@ -1,5 +1,20 @@
 GlowReadTTS Chrome Extension
-Copyright 2026 Lavelle Hatcher Jr
+Copyright (C) 2026 Lavelle Hatcher Jr
+
+GlowReadTTS is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. The full text is in LICENSE.
+
+GlowReadTTS is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+The extension is licensed as a whole under GPL-3.0-or-later because it bundles
+eSpeak NG, which is GPL-3.0-or-later, as a combined work. The individual
+third-party components keep their own licenses, listed below. The full text of
+the Apache License 2.0 is at the end of this file, for the components that are
+licensed under it.
 
 This product includes the following third-party software:
 
@@ -9,22 +24,413 @@ This product includes the following third-party software:
   https://huggingface.co/hexgrad/Kokoro-82M
 
 - Kokoro 82M ONNX (ONNX-converted distribution, bundled in this extension)
-  Copyright 2025 ONNX Community / Xenova (Hugging Face Staff)
+  Copyright 2025 ONNX Community / Xenova
   Licensed under the Apache License, Version 2.0
   https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX
   Bundled files:
     libs/kokoro-model/onnx/model_quantized.onnx (8-bit quantized model weights, ~92 MB)
-    libs/kokoro-model/voices/*.bin (15 voice embeddings, ~1 MB each)
+    libs/kokoro-model/voices/*.bin (15 voice embeddings, 522,240 bytes each, 7.8 MB total)
     libs/kokoro-model/config.json
     libs/kokoro-model/tokenizer.json
     libs/kokoro-model/tokenizer_config.json
 
-- ONNX Runtime Web (v1.22.0-dev, bundled by kokoro-js@1.2.1)
-  Copyright Microsoft Corporation
+- ONNX Runtime Web (npm package onnxruntime-web@1.22.0-dev.20250409-89f8206ba4)
+  Copyright (c) Microsoft Corporation
   Licensed under the MIT License
   https://github.com/microsoft/onnxruntime
+  Component versions reported by the bundle: onnxruntime-common 1.21.0,
+  onnxruntime-web 1.22.0-dev.20250409-89f8206ba4.
+  Bundled files:
+    libs/onnx/ort-wasm-simd-threaded.jsep.mjs
+    libs/onnx/ort-wasm-simd-threaded.jsep.wasm
+    the ONNX Runtime JavaScript API, bundled inside libs/kokoro/kokoro.web.js
+  License text:
+
+    MIT License
+
+    Copyright (c) Microsoft Corporation
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
 
 - kokoro-js (v1.2.1)
-  Copyright 2025 Xenova / Hugging Face
-  Licensed under the Apache License, Version 2.0
+  Copyright 2025 hexgrad and Xenova
+  Licensed under the Apache License, Version 2.0 (full text at the end of this file)
   https://github.com/hexgrad/kokoro
+  Bundled file:
+    libs/kokoro/kokoro.web.js (the kokoro-js web bundle, MODIFIED by this
+      project: six accessors added to the exported env object. Five
+      getter/setter pairs, allowLocalModels, allowRemoteModels,
+      localModelPath, remoteHost and useBrowserCache, let the extension load
+      the model from files bundled in the extension rather than over the
+      network. One getter, backends, exposes env.backends so the ONNX Runtime
+      thread count can be set. See the notice at the top of that file.)
+  That one file is a bundle. It also contains the four components below and
+  the ONNX Runtime JavaScript API listed above. Minification removed every
+  upstream copyright notice from it, so this file is the only record.
+
+- Transformers.js (@huggingface/transformers v3.5.1)
+  Copyright Hugging Face
+  Licensed under the Apache License, Version 2.0 (full text at the end of this file)
+  https://github.com/huggingface/transformers.js
+  Bundled inside:
+    libs/kokoro/kokoro.web.js
+
+- Jinja template engine for JavaScript (@huggingface/jinja v0.4.1)
+  Copyright (c) 2023 Hugging Face
+  Licensed under the MIT License
+  https://github.com/huggingface/huggingface.js
+  Bundled inside:
+    libs/kokoro/kokoro.web.js
+  Transformers.js v3.5.1 depends on @huggingface/jinja ^0.4.1. The exact
+  version resolved into the bundle is not recorded in the bundle itself;
+  0.4.1 is the only 0.4.x release.
+  License text:
+
+    MIT License
+
+    Copyright (c) 2023 Hugging Face
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+- phonemizer (v1.2.1)
+  Copyright Xenova
+  Licensed under the Apache License, Version 2.0 as declared by the package
+  (full text at the end of this file)
+  https://github.com/xenova/phonemizer.js
+  Bundled inside:
+    libs/kokoro/kokoro.web.js
+  This package supplies the compiled eSpeak NG build described in the next
+  entry. Note that the package declares Apache-2.0 while the eSpeak NG code
+  it ships is GPL-3.0-or-later; the entry below states the license that
+  applies to that code.
+
+- eSpeak NG
+  Copyright Reece H. Dunn and the eSpeak NG contributors
+  Licensed under the GNU General Public License, version 3 or later
+  (GPL-3.0-or-later). The full text is in LICENSE.
+  https://github.com/espeak-ng/espeak-ng
+  Bundled inside:
+    libs/kokoro/kokoro.web.js, as the eSpeak NG engine compiled to JavaScript
+      with wasm2js, together with its phoneme and voice data as an embedded
+      base64 run. It is reached through phonemizer v1.2.1 and is called
+      directly, in the same scope as the calling code.
+  The exact upstream revision of eSpeak NG that this build was produced from
+  is NOT currently identified. The compiled bundle carries no version string
+  for it, and phonemizer v1.2.1 does not record which revision it built.
+  Replacing this blob with a build from a pinned, recorded revision is
+  planned. Until that is done, the statement above is the limit of what is
+  known about its provenance, and nothing further should be inferred.
+
+- Icon glyphs in the popup (inline SVG)
+  Taken from Lucide, which began as a fork of Feather Icons. The set shipped
+  here is mixed: some glyphs are Lucide's own work, and some are Feather's,
+  carried over by Lucide unchanged. Lucide's own LICENSE file carries both
+  licenses for that reason: the ISC text for its own icons, and Feather's
+  MIT text for the icons it inherited, naming Cole Bemis. Both are
+  reproduced below. Several paths were modified for this project, which
+  does not change the obligation.
+  https://github.com/lucide-icons/lucide
+  https://github.com/feathericons/feather
+  Bundled in:
+    popup/popup.js (the "icons" object)
+  License text for the Lucide glyphs:
+
+    ISC License
+
+    Copyright (c) 2026 Lucide Icons and Contributors
+
+    Permission to use, copy, modify, and/or distribute this software for any
+    purpose with or without fee is hereby granted, provided that the above
+    copyright notice and this permission notice appear in all copies.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+  License text for the glyphs that come from Feather:
+
+    The MIT License (MIT)
+
+    Copyright (c) 2013-2023 Cole Bemis
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+================================================================================
+CORRESPONDING SOURCE (GNU GPL v3, sections 4 to 6)
+================================================================================
+
+GlowReadTTS is conveyed under GPL-3.0-or-later. The complete corresponding
+source for this extension, including the build script that produces the
+packaged archive, is the public repository:
+
+  https://github.com/lavellehatcherjr/GlowReadTTS
+
+Every file in the shipped archive is present in that repository in the form it
+ships, with one exception, described next.
+
+eSpeak NG
+---------
+
+The extension bundles eSpeak NG as compiled JavaScript inside
+libs/kokoro/kokoro.web.js. That compiled form is not source.
+
+  Upstream source:   https://github.com/espeak-ng/espeak-ng
+  Compiled form came from:  the npm package phonemizer version 1.2.1,
+                            https://www.npmjs.com/package/phonemizer
+                            which ships it as src/espeakng.worker.js and
+                            data/espeakng.worker.data
+
+The exact upstream revision that this compiled build was produced from is NOT
+currently identified. The bundle carries no version string for eSpeak NG, and
+phonemizer 1.2.1 does not record which revision it built from. This notice does
+not claim otherwise, and no particular upstream commit should be inferred from
+it.
+
+The intended fix is to rebuild the engine from a pinned, recorded eSpeak NG
+revision and to state that revision here, so that the corresponding source for
+the compiled form can be identified exactly. That work is planned and is not
+part of this release. Anyone who needs the corresponding source for the
+compiled eSpeak NG as currently shipped should treat phonemizer 1.2.1 as the
+immediate upstream and raise the revision question there; the relevant issue is
+xenova/phonemizer.js#6, which is open and unanswered.
+
+================================================================================
+APACHE LICENSE 2.0 (full text)
+================================================================================
+
+This is the text of the Apache License, Version 2.0. It is included because
+some of the third-party components bundled in GlowReadTTS are licensed under it.
+Those components, and their copyright holders, are listed above.
+
+The GlowReadTTS project claims no copyright in this text and attaches no
+copyright holder to it. GlowReadTTS itself is licensed under the GNU General
+Public License, version 3 or later; see LICENSE.
+
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS

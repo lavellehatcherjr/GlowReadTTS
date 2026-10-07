@@ -18,19 +18,29 @@ const INIT_TIMEOUT_MS = 60_000;
 const GENERATE_TIMEOUT_MS = 90_000;
 
 // Bound on the wait for the FIRST chunk, as distinct from the gap between
-// later chunks. GENERATE_TIMEOUT_MS used to cover both, which meant a worker
-// that never answered at all took 90 s to surface — and held its AudioContext
-// and decoded buffers for that whole window. Nothing legitimate takes 15 s to
-// produce one sentence of audio on a warm session: at 4-thread WASM a sentence
-// is 0.5–2 s, and cold-load cost is paid in _init(), not here. So a 15 s
-// silence means the worker is wedged or dead, and we say so instead of waiting.
-const FIRST_CHUNK_TIMEOUT_MS = 15_000;
+// later chunks. GENERATE_TIMEOUT_MS used to cover both, so a worker that never
+// answered took 90 s to surface, holding its AudioContext that whole time.
+//
+// Sized from measurement, not assumption: a 20-word opening needs ~13.8 s to
+// first audio at 1x and 25 words overran the previous budget outright. A
+// tolerance change, not a cause fix — capping the first chunk was the
+// structural one, reverted because splitting a sentence shifted its prosody.
+const FIRST_CHUNK_TIMEOUT_MS = 45_000;
 
 // Deadline for the pre-generate liveness probe. This is a bare postMessage
 // round trip on an idle worker — sub-millisecond when healthy. 2 s is
 // generous enough to absorb a busy main thread without ever tripping on a
 // worker that is merely slow.
 const PING_TIMEOUT_MS = 2_000;
+
+// Bound on waiting for the decode chain to drain once the worker says the
+// stream is done. A chunk between addChunk() and _scheduleChunk() lives in the
+// _chainTail promise chain and is in neither _scheduled nor _queued, so the
+// end-of-stream checks cannot see it; markStreamDone() waits for the chain
+// rather than declaring the read over and throwing that audio away. A 24 kHz
+// WAV decode of a few seconds is single-digit milliseconds, so 2 s is two to
+// three orders of margin and invisible at end-of-read.
+const CHAIN_DRAIN_TIMEOUT_MS = 2_000;
 
 /**
  * AudioContext-backed playback queue. Exposes a small EventTarget surface
@@ -78,6 +88,10 @@ class ChunkedAudio extends EventTarget {
     this._totalScheduledDuration = 0;
 
     this._streamDone = false;
+    // Set once the stream is done AND every chunk has left the _chainTail
+    // chain. Both routes to _fireEnded require it, because both are otherwise
+    // blind to a chunk that is still decoding.
+    this._chainDrained = false;
     this._ended = false;
     this._paused = true;
     this._estimated = Math.max(0.5, estimatedDurationSec || 0.5);
@@ -176,26 +190,22 @@ class ChunkedAudio extends EventTarget {
       sentenceTimer: null
     };
 
-    // Fire 'sentencestart' the moment this chunk transitions to the active
-    // chunk. setTimeout's drift relative to ctx.currentTime is small at
-    // sub-second delays — well within a sentence highlight's tolerance.
-    const delayMs = Math.max(0, (when - now) * 1000);
-    entry.sentenceTimer = setTimeout(() => {
-      if (this._disposed) return;
-      this._currentSentenceMeta = sentenceMeta;
-      if (sentenceMeta) {
-        try {
-          this.dispatchEvent(new CustomEvent('sentencestart', { detail: sentenceMeta }));
-        } catch (e) { /* CustomEvent always works in browsers; defensive */ }
-      }
-    }, delayMs);
+    this._armSentenceTimer(entry);
 
     source.onended = () => {
       if (this._disposed) return;
       // The 'ended' event for the queue fires only when the LAST scheduled
       // chunk's source ends AND the worker has marked the stream done.
       const isLast = (this._scheduled[this._scheduled.length - 1] === entry);
-      if (this._streamDone && isLast) {
+      // _chainDrained is required as well: without it, a chunk still decoding
+      // is absent from _scheduled, which makes the chunk before it look like
+      // the last one and ends the read a sentence early.
+      // _queued must be empty as well, for the same reason branch two of
+      // _checkStreamEnd needs it. pause() sets _paused synchronously but
+      // ctx.suspend() settles a tick later, so a source can finish inside that
+      // window and arrive here with chunks already parked in _queued.
+      if (this._streamDone && this._chainDrained && isLast
+          && this._queued.length === 0) {
         this._fireEnded();
       }
     };
@@ -205,10 +215,54 @@ class ChunkedAudio extends EventTarget {
     this._totalScheduledDuration += buffer.duration;
   }
 
+  /**
+   * Arm this entry's 'sentencestart' timer from the current ctx clock.
+   *
+   * The delay is wall-clock (setTimeout) while the chunk's position is
+   * ctx-time, and the two only track each other while playback is continuous.
+   * A pause breaks that: ctx.suspend() freezes currentTime but setTimeout keeps
+   * counting, so a pending timer would fire for a sentence that is not playing
+   * and the highlight would run ahead of the audio. pause() therefore clears
+   * these and play() re-arms them from the frozen clock, which is why the delay
+   * is computed here rather than captured once at schedule time.
+   *
+   * entry.sentenceTimer doubles as the "still owes a sentencestart" marker: the
+   * callback nulls it on firing, so pause clears and play re-arms exactly the
+   * entries that have not fired yet. Stale handles are only ever passed to
+   * clearTimeout, which tolerates them, and clearTimeout(null) is a no-op so
+   * dispose() stays safe.
+   */
+  _armSentenceTimer(entry) {
+    const delayMs = Math.max(0, (entry.when - this._ctx.currentTime) * 1000);
+    entry.sentenceTimer = setTimeout(() => {
+      entry.sentenceTimer = null;
+      if (this._disposed) return;
+      this._currentSentenceMeta = entry.sentenceMeta;
+      if (entry.sentenceMeta) {
+        try {
+          this.dispatchEvent(new CustomEvent('sentencestart', { detail: entry.sentenceMeta }));
+        } catch (e) { /* CustomEvent always works in browsers; defensive */ }
+      }
+    }, delayMs);
+  }
+
   play() {
     if (this._disposed) return Promise.resolve();
     const wasPaused = this._paused;
     this._paused = false;
+
+    // Re-arm the sentence timers pause() cleared, BEFORE draining _queued.
+    // The drain calls _scheduleChunk, which arms its own entries; re-arming
+    // after it would double-arm those and fire their highlight twice. At this
+    // point _scheduled holds only pre-pause entries, so the non-null ones are
+    // exactly those that still owe a sentencestart. ctx.resume() below settles
+    // a tick later, which leaves the same few milliseconds of drift the
+    // original comment already accepted.
+    if (wasPaused) {
+      for (const entry of this._scheduled) {
+        if (entry.sentenceTimer !== null) this._armSentenceTimer(entry);
+      }
+    }
 
     // Promote any pre-play queued chunks into the schedule. After this,
     // future addChunk calls schedule immediately (since !paused).
@@ -236,6 +290,13 @@ class ChunkedAudio extends EventTarget {
     if (this._ctx.state === 'running') {
       this._ctx.suspend().catch(() => {});
     }
+    // Stop the pending sentencestart timers. They are wall-clock, so without
+    // this they fire while the audio is frozen and the highlight walks to the
+    // end of the scheduled chunks during the pause. The handle is deliberately
+    // left in place: play() uses non-null to mean "has not fired yet".
+    for (const entry of this._scheduled) {
+      if (entry.sentenceTimer !== null) clearTimeout(entry.sentenceTimer);
+    }
     this._stopTimeUpdates();
   }
 
@@ -260,11 +321,66 @@ class ChunkedAudio extends EventTarget {
    */
   markStreamDone() {
     this._streamDone = true;
+
+    // Wait for the scheduling chain before deciding anything. Capturing
+    // _chainTail here is safe, and this is the non-obvious part: the generate()
+    // message handler calls cleanup() -- which removes the worker 'message'
+    // listener -- immediately before calling us, so no further AUDIO_CHUNK can
+    // be delivered and no later link can be appended. The promise captured here
+    // is therefore the last link in the chain.
+    const chain = this._chainTail;
+    let settled = false;
+
+    // A decode that never settles would hang the chain forever, and cleanup()
+    // has already cleared the stall timer and detached the worker listener, so
+    // nothing else would ever end this read. Deliberately dispatches 'error'
+    // and never 'ended': firing 'ended' on expiry would reproduce the
+    // truncation this method exists to prevent, just on a timer.
+    //
+    // offscreen.js currently binds the same handler to 'ended' and 'error', so
+    // the distinction is not yet visible to the user. Separating those is a
+    // change of its own.
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      if (this._disposed || this._ended) return;
+      console.warn('[GlowReadTTS] decode chain did not drain within '
+        + CHAIN_DRAIN_TIMEOUT_MS + 'ms; ending the read as an error');
+      try { this.dispatchEvent(new Event('error')); } catch (e) { /* ignore */ }
+    }, CHAIN_DRAIN_TIMEOUT_MS);
+
+    // A decode rejection is caught inside the link, so the chain resolves
+    // rather than rejecting; the rejection handler is belt and braces against a
+    // future link that throws before that catch.
+    const onDrained = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      // A stop() can land during the wait.
+      if (this._disposed || this._ended) return;
+      this._chainDrained = true;
+      this._checkStreamEnd();
+    };
+    chain.then(onDrained, onDrained);
+  }
+
+  /**
+   * The end-of-stream decision, unchanged. Only reachable once the stream is
+   * done and the chain has drained, so _scheduled and _queued between them now
+   * account for every chunk the worker produced.
+   */
+  _checkStreamEnd() {
     if (this._scheduled.length === 0 && this._queued.length === 0) {
       this._fireEnded();
       return;
     }
-    if (this._scheduled.length > 0) {
+    // _queued must be empty here too. Branch one above requires both arrays
+    // empty; this one read _scheduled and the clock only, and that was the
+    // whole defect: pause() suspends the context, which freezes currentTime,
+    // so once the audio queue has drained the comparison below is already true
+    // and stays true. A pause taken during a starvation gap therefore ended
+    // the read and discarded every chunk generated during the pause.
+    if (this._scheduled.length > 0 && this._queued.length === 0) {
       const last = this._scheduled[this._scheduled.length - 1];
       if (this._ctx.currentTime >= last.when + last.duration) {
         this._fireEnded();
@@ -529,7 +645,7 @@ class KokoroManager {
       };
       this._activeAbort = abortFn;
 
-      // `waitingForFirstChunk` picks the deadline: 15 s while nothing has
+      // `waitingForFirstChunk` picks the deadline: 45 s while nothing has
       // arrived (a silent worker), 90 s for the gap between later chunks (a
       // long sentence on slow hardware, which is legitimate).
       const armTimer = (waitingForFirstChunk) => {
@@ -540,9 +656,12 @@ class KokoroManager {
           if (!resolvedFirst) {
             chunked.dispose();
             if (!sawAnyResponse) {
-              // Silence for the whole window with not one message back: the
-              // worker is wedged or dead. Recycle so the NEXT read rebuilds
-              // instead of repeating this.
+              // Not one message back for the whole window: usually a wedged or
+              // dead worker, so recycle and let the NEXT read rebuild. But a
+              // worker correctly generating a long first sentence lands here
+              // too — nothing is posted between GENERATE and the first chunk —
+              // and gets terminated. A GENERATE_STARTED ack would set
+              // sawAnyResponse and skip the recycle; separate change.
               this._recycleWorker('no response within ' + ms + 'ms');
             }
             // Distinct from the mid-stream stall message below so the console

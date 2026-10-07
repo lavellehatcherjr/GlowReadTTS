@@ -1,5 +1,4 @@
 /**
- * GlowReadTTS Service Worker
  * Handles AI-voice context-menu reading (routed through the offscreen
  * document) and highlight relay.
  */
@@ -8,9 +7,9 @@ console.log('[GlowReadTTS] Service worker starting...');
 
 // Bumping this constant forces all users to re-accept the EULA on next launch.
 // MUST stay in lockstep with EULA_VERSION in eula/eula.js and CURRENT_EULA_VERSION
-// in popup/popup.js — when these drift, the service worker treats freshly-
+// in popup/popup.js, when these drift, the service worker treats freshly-
 // accepted EULAs as not-accepted and opens the EULA tab on every right-click.
-const CURRENT_EULA_VERSION = '1.2';
+const CURRENT_EULA_VERSION = '1.3';
 
 const OFFSCREEN_DOCUMENT_PATH = 'offscreen/offscreen.html';
 
@@ -65,7 +64,7 @@ let offscreenPrewarmPromise = null;
  * The in-flight de-dupe above means those collapse to a single model load
  * when they overlap.
  *
- * Best-effort: any failure is logged and swallowed — the on-demand path in
+ * Best-effort: any failure is logged and swallowed; the on-demand path in
  * speakFromServiceWorker still creates the offscreen doc as a fallback.
  */
 async function prewarmOffscreenIfAIVoice() {
@@ -75,7 +74,7 @@ async function prewarmOffscreenIfAIVoice() {
       const stored = await chrome.storage.sync.get(['voice', 'settings']);
       const voice = stored.voice || (stored.settings && stored.settings.voice) || '';
       if (typeof voice !== 'string' || !voice.startsWith('ai:')) return;
-      // Strip the "ai:" prefix — the worker's warmup generate expects a
+      // Strip the "ai:" prefix; the worker's warmup generate expects a
       // raw kokoro voice id (e.g. "af_heart"). Forwarding it means the
       // warmup loads that voice's embedding too, so the first real read
       // pays no per-voice fetch cost.
@@ -127,15 +126,12 @@ async function ensureOffscreenDocument() {
     // waitForOffscreenReady handles that race.
     return;
   }
-  // Clear any stale readiness flag from a previous offscreen session before
-  // creating the new doc, so waitForOffscreenReady waits for THIS load.
-  try { await chrome.storage.session.remove('offscreenReady'); } catch (e) { /* ignore */ }
   await chrome.offscreen.createDocument({
     url: OFFSCREEN_DOCUMENT_PATH,
     // AUDIO_PLAYBACK alone is not enough: Chrome only treats it as an active
     // reason while audio is actually playing. The bundled neural model takes
     // 5–30 s to compile + load before any audio exists, and during that window
-    // the offscreen document is considered idle and gets torn down — which
+    // the offscreen document is considered idle and gets torn down, which
     // kills the inference Worker mid-init and causes the SW->offscreen
     // sendMessage to reject with "channel closed before a response was
     // received". WORKERS keeps the document alive whenever the offscreen has
@@ -145,19 +141,14 @@ async function ensureOffscreenDocument() {
   });
 }
 
-// Wait until offscreen.js has registered its message listener. Two paths:
-//   1. Fast path: storage flag set on offscreen module load.
-//   2. Slow path: ping the offscreen and wait for any reply.
+// Wait until offscreen.js has registered its message listener, by pinging the
+// document until it answers.
 // Bounded so a broken offscreen doc surfaces as a real error instead of
 // hanging the right-click flow forever.
 const OFFSCREEN_READY_TIMEOUT_MS = 10_000;
 async function waitForOffscreenReady() {
   const start = Date.now();
   while (Date.now() - start < OFFSCREEN_READY_TIMEOUT_MS) {
-    try {
-      const { offscreenReady } = await chrome.storage.session.get('offscreenReady');
-      if (offscreenReady) return;
-    } catch (e) { /* fall through to ping */ }
     try {
       const reply = await chrome.runtime.sendMessage({
         target: 'offscreen',
@@ -169,7 +160,7 @@ async function waitForOffscreenReady() {
     // loading, so a cold creation almost always lost a full poll quantum
     // waiting on a document that was already nearly ready. The loop is bounded
     // by wall-clock (OFFSCREEN_READY_TIMEOUT_MS) rather than an iteration
-    // count, so the total wait budget is unchanged — only the granularity.
+    // count, so the total wait budget is unchanged, only the granularity.
     await new Promise(r => setTimeout(r, 25));
   }
   throw new Error('Offscreen document failed to become ready within ' + OFFSCREEN_READY_TIMEOUT_MS + 'ms');
@@ -213,7 +204,7 @@ function sendToTab(tabId, message) {
 
 /**
  * Ensure the persistent content script is loaded on the given tab. Required
- * for highlight messages to actually do something — without it, sendToTab
+ * for highlight messages to actually do something; without it, sendToTab
  * silently succeeds (lastError gets eaten in sendToTab's callback) and no
  * highlight ever appears. Tabs opened BEFORE the extension was installed or
  * reloaded don't have the content script from the manifest's content_scripts
@@ -221,7 +212,7 @@ function sendToTab(tabId, message) {
  *
  * Idempotent via a probe: send a benign message first; if a response comes
  * back, the script is already loaded and we skip injection. Injection
- * failures (restricted pages, etc.) are non-fatal — caller proceeds; speech
+ * failures (restricted pages, etc.) are non-fatal: caller proceeds; speech
  * still plays, just without on-page highlighting.
  */
 async function ensureContentScript(tab) {
@@ -233,7 +224,7 @@ async function ensureContentScript(tab) {
     return false;
   }
   try {
-    // Bound the probe — if a stale listener from an older version returned
+    // Bound the probe: if a stale listener from an older version returned
     // `true` without calling sendResponse, the message channel could hang.
     // 500 ms is comfortably above the round-trip for an in-page listener.
     const reply = await Promise.race([
@@ -242,7 +233,7 @@ async function ensureContentScript(tab) {
     ]);
     if (reply !== undefined) return true;
   } catch (e) {
-    // "Receiving end does not exist" or ping timeout — proceed to inject.
+    // "Receiving end does not exist" or ping timeout. Proceed to inject.
   }
   try {
     await chrome.scripting.insertCSS({
@@ -290,7 +281,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   // of ~95 MB of RAM after their first text selection of a session.
   // Power users on low-RAM devices can opt out from the options page.
   //
-  // Stored in chrome.storage.local (NOT sync) — this is a per-device
+  // Stored in chrome.storage.local (NOT sync); this is a per-device
   // performance preference. A user might legitimately want it ON on a
   // 16 GB desktop and OFF on a 4 GB Chromebook, and it doesn't make
   // sense to sync that decision to Google.
@@ -305,6 +296,103 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     contexts: ['selection']
   });
 });
+
+/**
+ * Pause or resume, deciding from storage rather than from any local toggle.
+ *
+ * The service worker holds no state across evictions, and two fast presses
+ * would both read "playing" if the direction were tracked here. pause() is
+ * idempotent so that failure is benign, but a double tap should be a no-op
+ * rather than pause then resume. offscreen.js is the only writer of
+ * playbackPaused, so this reads the one authoritative value.
+ *
+ * Shared by the keyboard command and the on-page toggle so the two surfaces
+ * cannot disagree.
+ */
+async function togglePauseFromStorage() {
+  let paused = false;
+  try {
+    const st = await chrome.storage.session.get(['playbackActive', 'playbackPaused']);
+    if (!st.playbackActive) return;           // nothing is reading
+    paused = st.playbackPaused === true;
+  } catch (e) { return; }
+  try {
+    chrome.runtime.sendMessage(
+      { target: 'offscreen', action: paused ? 'OFFSCREEN_RESUME' : 'OFFSCREEN_PAUSE' },
+      () => { void chrome.runtime.lastError; }
+    );
+  } catch (e) { /* offscreen unavailable */ }
+}
+
+/**
+ * Read the selection, driven by the keyboard rather than the context menu.
+ *
+ * Deliberately NOT unified with onClicked's race. The menu has
+ * info.selectionText behind it three different ways, so 200 ms there is right.
+ * A command has nothing behind it, so a timeout here must not be reported as
+ * "nothing selected": widen the window, and tell the two failures apart.
+ */
+async function readSelectionFromCommand(tab) {
+  if (!tab || !tab.id) return;
+  if (!(await isEulaAccepted())) { openEulaTab(); return; }
+
+  const injected = await ensureContentScript(tab);
+
+  let reply = null;
+  let answered = false;
+  try {
+    reply = await Promise.race([
+      chrome.tabs.sendMessage(tab.id, { action: 'GET_VISIBLE_SELECTION' }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000))
+    ]);
+    answered = true;
+  } catch (e) { /* no content script, restricted page, or slower than 1 s */ }
+
+  const text = (answered && reply && typeof reply.text === 'string') ? reply.text.trim() : '';
+
+  if (!answered) {
+    // Text may well be selected; we simply could not ask. Never claim otherwise.
+    // On a page with no content script at all there is nothing to show a pill
+    // on either, so this is quiet there by construction.
+    if (injected) sayOnPage(tab.id, 'Could not read the selection on this page');
+    return;
+  }
+  if (text.length === 0) {
+    sayOnPage(tab.id, 'Select some text first');
+    return;
+  }
+  // A read already in progress is replaced, same as the menu path.
+  await speakFromServiceWorker(text, tab.id);
+}
+
+function sayOnPage(tabId, text) {
+  try {
+    chrome.tabs.sendMessage(tabId, { action: 'SHOW_PAGE_MESSAGE', text },
+      () => { void chrome.runtime.lastError; });
+  } catch (e) { /* no content script; fail quietly */ }
+}
+
+// Keyboard commands. `commands` is a manifest field, not a permission, so this
+// adds nothing to permissions, optional_permissions or host_permissions.
+//
+// Known limitation: there is one offscreen document, one manager and one
+// currentTabId, so pressing pause while a read plays in another tab pauses that
+// read with no indication in the tab you are looking at. Accepted for this
+// change.
+if (chrome.commands && chrome.commands.onCommand) {
+  chrome.commands.onCommand.addListener(async (command) => {
+    if (command === 'toggle-pause') {
+      await togglePauseFromStorage();
+      return;
+    }
+    if (command === 'read-selection') {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        await readSelectionFromCommand(tab);
+      } catch (e) { /* no addressable tab; fail quietly */ }
+    }
+  });
+}
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== 'glowreadtts-read' || !info.selectionText) return;
@@ -361,7 +449,7 @@ async function speakFromServiceWorker(text, tabId) {
     storedVoice = 'ai:' + DEFAULT_AI_VOICE_ID;
   }
   const aiVoice = storedVoice.replace(/^ai:/, '');
-  // Clamp speed to slider range (0.25–2.0) — the right-click flow reads
+  // Clamp speed to slider range (0.25–2.0); the right-click flow reads
   // storage independently and could otherwise pick up a stale out-of-range
   // value the popup never had a chance to migrate.
   const rawSpeed = parseFloat(settings.speed) || 1.0;
@@ -428,8 +516,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // OFFSCREEN_PROGRESS and OFFSCREEN_SENTENCE_START are high-frequency
   // relays that fire throughout every read (a watchdog tap every ~5 s, plus
   // one per sentence). Logging them wakes the service worker on each one,
-  // costs measurably more with DevTools open — exactly when someone is
-  // profiling — and buries every log that actually matters. Everything else
+  // costs measurably more with DevTools open, exactly when someone is
+  // profiling, and buries every log that actually matters. Everything else
   // still logs.
   if (request.action !== 'OFFSCREEN_PROGRESS' && request.action !== 'OFFSCREEN_SENTENCE_START') {
     console.log('[Service Worker] Message received:', request.action);
@@ -488,7 +576,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           // Prewarm signal. Sent by the content script on a text selection,
           // and by the popup when it opens with an AI voice saved or the
           // user switches to one. Both senders gate on the user's
-          // `prewarmOnSelection` setting before sending this — if it
+          // `prewarmOnSelection` setting before sending this: if it
           // arrives, the user has opted into faster first-reads at the cost
           // of ~95 MB of RAM for the session. The prewarm call itself is
           // idempotent so repeated pings from either sender collapse.
@@ -496,11 +584,50 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ success: true });
           break;
 
+        case 'TOGGLE_PAUSE_FROM_PAGE':
+          // The on-page toggle. Direction comes from storage, not from the
+          // page, so the page and the keyboard cannot disagree.
+          togglePauseFromStorage();
+          break;
+
+        case 'OFFSCREEN_PAUSED_CHANGED': {
+          // Own the paused flag on the offscreen document's behalf. It decides
+          // the state but cannot store it: chrome.runtime is the only
+          // extensions API available in an offscreen document, so its own
+          // chrome.storage call threw a TypeError that its try swallowed, and
+          // the flag was never written. The popup and togglePauseFromStorage
+          // both read it, which is why a keyboard pause could not be resumed.
+          //
+          // Awaited, and deliberately not wrapped: a storage failure here is a
+          // real fault and belongs in the outer catch, where it is logged.
+          // Swallowing the write is what hid the original bug.
+          const paused = request.paused === true;
+          if (paused) {
+            await chrome.storage.session.set({ playbackPaused: true });
+          } else {
+            await chrome.storage.session.remove('playbackPaused');
+          }
+          // Then the on-page toggle, so it follows a keyboard or popup pause
+          // too. The content script cannot read chrome.storage.session either.
+          // tabId is null for typed-text and Test Voice reads, which have no
+          // page to update; only this relay is gated on it, never the write.
+          if (request.tabId) {
+            try {
+              chrome.tabs.sendMessage(
+                request.tabId,
+                { action: 'SET_PAUSE_UI', paused },
+                () => { void chrome.runtime.lastError; }
+              );
+            } catch (e) { /* tab closed or no content script */ }
+          }
+          break;
+        }
+
         case 'STOP_FROM_PAGE':
           // The on-page Stop button (rendered by the content script during
           // a right-click read) was clicked. Forward OFFSCREEN_STOP to the
           // offscreen so it tears down the audio queue and posts back
-          // OFFSCREEN_ENDED — which then relays STOP_HIGHLIGHT to the tab,
+          // OFFSCREEN_ENDED, which then relays STOP_HIGHLIGHT to the tab,
           // hiding the page button and clearing the highlight in one go.
           // Same code path as the popup's Stop button, just from the page.
           try {
@@ -525,8 +652,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             // If the popup signals that this read is for on-page text,
             // drive the highlight on the active tab the same way
             // speakFromServiceWorker does for right-click reads. (Currently
-            // no popup path sets tabId — typed text / Test Voice both pass
-            // tabId=null — but the relay is kept for any future on-page
+            // no popup path sets tabId, typed text / Test Voice both pass
+            // tabId=null, but the relay is kept for any future on-page
             // entry point added to the popup.)
             if (request.tabId && request.text) {
               state.highlightTabId = request.tabId;

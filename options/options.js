@@ -1,7 +1,3 @@
-/**
- * GlowReadTTS Options Page
- */
-
 document.addEventListener('DOMContentLoaded', initOptions);
 
 async function initOptions() {
@@ -22,7 +18,7 @@ async function initOptions() {
 }
 
 // Selection-prewarm toggle. Stored as a flat boolean key in
-// chrome.storage.local (NOT sync) — this is a per-device performance
+// chrome.storage.local (NOT sync); this is a per-device performance
 // preference and shouldn't follow the user across machines with
 // different RAM budgets. Default true (matches the default written by
 // service-worker.js's onInstalled handler).

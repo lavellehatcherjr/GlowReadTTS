@@ -23,7 +23,8 @@ https://github.com/user-attachments/assets/3907923e-1b0b-4ef5-92be-14e9553f21ec
 - **AI Voices** - 15 bundled on-device neural voices (American and British English). ~96MB of model weights ship with the extension; no API keys, no downloads, no network calls.
 - **Text Input** - Paste or type any text and hear it read aloud
 - **Right-Click Reading** - Select text on any webpage, right-click, choose "Read with GlowReadTTS" - with highlight-as-you-read on the page
-- **On-Page Stop Button** - A floating Stop button appears top-right of the page during right-click reads, so you can halt without opening the popup
+- **On-Page Controls** - Floating Pause and Stop buttons appear top-right of the page during right-click reads, so you can pause or halt without opening the popup
+- **Keyboard Shortcuts** - Read the current selection or pause and resume without touching the mouse. Chrome does not always assign the suggested keys, so set them at `chrome://extensions/shortcuts` if a shortcut does nothing; the popup shows the keys you have
 - **Speed Control** - Adjust reading speed from 0.25x to 2x
 - **Performance Toggle** - Optional selection-driven pre-warm so the first right-click read of a session starts in ~1–2 s (default ON; switch off in Settings to keep idle RAM minimal)
 - **Privacy First** - 100% local processing. No data collection, no analytics, no accounts, no network calls.
@@ -50,6 +51,7 @@ The download is around 132 MB, because the neural voice model ships inside the e
 
 1. **Type or paste text** into the text box and click "Read Text"
 2. **Right-click** selected text on any page → "Read with GlowReadTTS" (the spoken sentence is highlighted on the page)
+3. **Keyboard:** use the read-selection shortcut instead of the right-click menu, and the pause shortcut to pause or resume any read, including typed text and Test Voice
 
 ## AI Voices
 
@@ -82,7 +84,13 @@ For the full list of third-party libraries and their licenses, see [NOTICE](NOTI
 
 ## License & Policies
 
+- **Getting started:** [GETTING_STARTED.md](GETTING_STARTED.md)
 - **Changes:** [CHANGELOG.md](CHANGELOG.md)
-- **License:** Apache License 2.0 - see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+- **Copyright:** Copyright (C) 2026 Lavelle Hatcher Jr
+- **License:** GNU General Public License v3.0 or later - see [LICENSE](LICENSE)
+  and [NOTICE](NOTICE). The extension bundles eSpeak NG, which is GPL-3.0-or-later,
+  so the whole is conveyed under those terms. [NOTICE](NOTICE) lists every bundled
+  third-party component and carries the Apache 2.0 and MIT texts those components
+  are licensed under.
 - **Privacy Policy:** [PRIVACY.md](PRIVACY.md)
 - **Terms of Use (EULA):** [EULA.md](EULA.md)

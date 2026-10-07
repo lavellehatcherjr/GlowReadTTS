@@ -2,7 +2,7 @@
 
 # Privacy Policy
 
-**Last Updated:** July 28, 2026
+**Last Updated:** October 8, 2026
 
 Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS browser extension ("Software"). This Privacy Policy describes how we handle information when you use the Software. By using the Software, you agree to the practices described in this Privacy Policy.
 
@@ -35,7 +35,7 @@ Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS 
 - **(b)** EULA/Privacy Policy acceptance state (`chrome.storage.local`) - records that you accepted these terms, the version accepted, and the date of acceptance.
 - **(c)** Selection-prewarm preference (`chrome.storage.local`) - a single boolean (`prewarmOnSelection`) that controls whether the AI voice model preloads when you select text on a page. Stored only on this device - never syncs to any server.
 - **(d)** Session text for playback continuity (`sessionStorage`) - temporarily stores the most recently read text. This is automatically cleared when the popup is closed.
-- **(e)** Transient internal state flags (`chrome.storage.session`) - a small set of booleans (`playbackActive`, `aiPrewarmReady`, `offscreenReady`) used internally to surface the "Reading in progress" banner when the popup reopens during an active read, to track whether the AI voice model has finished loading for the current browser session, and to coordinate the Software's own components. Individual flags are cleared as soon as they are no longer needed (for example, `playbackActive` is cleared when audio ends or is stopped), and all of them are cleared automatically when the browser closes. These flags contain no user content or identifying information.
+- **(e)** Transient internal state flags (`chrome.storage.session`) - a small set of booleans (`playbackActive`, `playbackPaused`, `aiPrewarmReady`) used internally to surface the "Reading in progress" banner when the popup reopens during an active read, to track whether the AI voice model has finished loading for the current browser session, and to coordinate the Software's own components. Individual flags are cleared as soon as they are no longer needed (for example, `playbackActive` is cleared when audio ends or is stopped), and all of them are cleared automatically when the browser closes. These flags contain no user content or identifying information.
 
 **3.2** No data stored by the Software is accessible to other extensions, websites, or applications. Chrome's storage APIs are sandboxed to the extension's unique origin.
 
@@ -63,7 +63,7 @@ Lavelle Hatcher Jr ("Developer," "we," "us," or "our") operates the GlowReadTTS 
 
 ## Section 6: Third-Party Services
 
-**6.1** Google Chrome APIs: The Software uses Chrome's built-in APIs (`chrome.storage`, `chrome.contextMenus`, `chrome.scripting`, `chrome.offscreen`, `chrome.notifications`). These APIs are provided by Google and subject to Google's terms of service and privacy policy. The Developer is not responsible for how Chrome or Google handles data processed through these APIs. The Software does NOT use Chrome's `chrome.tts` API and does NOT send any text to remote / network speech engines.
+**6.1** Google Chrome APIs: The Software uses Chrome's built-in APIs (`chrome.storage`, `chrome.contextMenus`, `chrome.scripting`, `chrome.offscreen`, `chrome.notifications`, `chrome.commands`). These APIs are provided by Google and subject to Google's terms of service and privacy policy. The Developer is not responsible for how Chrome or Google handles data processed through these APIs. The Software does NOT use Chrome's `chrome.tts` API and does NOT send any text to remote / network speech engines.
 
 ## Section 7: Children's Privacy
 

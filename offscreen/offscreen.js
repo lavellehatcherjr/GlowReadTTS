@@ -3,6 +3,13 @@
  * AI voice flow. The service worker can't host the inference worker or play
  * <Audio>, so it routes generation requests here. This document stays alive
  * for the browser session; the manager and worker persist across requests.
+ *
+ * API LIMIT, and it is a quiet one: chrome.runtime is the only extensions API
+ * available inside an offscreen document. chrome.storage, chrome.tabs and the
+ * rest are undefined here, so touching one throws a TypeError rather than
+ * failing a call. Anything this document needs from another API has to be
+ * asked of the service worker over chrome.runtime.
+ * https://developer.chrome.com/docs/extensions/reference/api/offscreen
  */
 
 import KokoroManager from '../libs/kokoro/kokoro-manager.js';
@@ -18,7 +25,7 @@ let currentTabId = null;
 // Without this, when we dispose() the old ChunkedAudio while starting a new
 // read, a stray 'error' event from the disposed AudioContext could otherwise
 // round-trip through onEnded and tell the SW to STOP_HIGHLIGHT on the tab
-// the NEW run just lit up — wiping it.
+// the NEW run just lit up, wiping it.
 let activeRunId = 0;
 
 // Heartbeat interval while a generation is in flight. The SW await on
@@ -40,6 +47,35 @@ function startHeartbeat(tabId) {
       }, () => { void chrome.runtime.lastError; });
     } catch (e) { /* SW may be torn down between heartbeats; ignore */ }
   }, HEARTBEAT_INTERVAL_MS);
+}
+
+/**
+ * playbackPaused: the only flag that tells paused from playing.
+ *
+ * This document decides the state but cannot store it. Only chrome.runtime is
+ * available here, so it reports every transition to the service worker, which
+ * owns the write. See the API note at the top of this file.
+ *
+ * The post is unconditional. It used to be skipped when there was no tab,
+ * which was correct while it was only a UI relay, but the message is now the
+ * sole route to storage and typed-text and Test Voice reads have no tab. Those
+ * are exactly the reads the keyboard shortcut exists to serve. tabId therefore
+ * travels as null and the service worker skips only the tab relay.
+ *
+ * Known gap, inherited rather than introduced: if Chrome reclaims this
+ * document while a read is paused, neither this flag nor playbackActive is
+ * cleared, because both are event driven and nothing fires. playbackActive
+ * already behaves that way; chrome.storage.session clears on browser close.
+ */
+function setPausedFlag(paused) {
+  try {
+    chrome.runtime.sendMessage({
+      target: 'service-worker',
+      action: 'OFFSCREEN_PAUSED_CHANGED',
+      tabId: currentTabId,
+      paused: !!paused
+    }, () => { void chrome.runtime.lastError; });
+  } catch (e) { /* SW asleep; the next read rebuilds the control anyway */ }
 }
 
 function stopHeartbeat() {
@@ -71,7 +107,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         stopHeartbeat();
         // AbortError = the manager superseded this generate() with a newer
         // one (or the user explicitly stopped). Either way it's not a real
-        // failure — surface as success-aborted so the caller doesn't show
+        // failure; surface as success-aborted so the caller doesn't show
         // a "voice generation failed" toast over what the user just chose.
         if (err && err.name === 'AbortError') {
           sendResponse({ success: true, aborted: true });
@@ -92,13 +128,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.action === 'OFFSCREEN_PAUSE') {
-    if (manager) manager.pause();
+    if (manager) {
+      manager.pause();
+      setPausedFlag(true);
+    }
     sendResponse({ success: true });
     return false;
   }
 
   if (msg.action === 'OFFSCREEN_RESUME') {
-    if (manager) manager.resume();
+    if (manager) {
+      manager.resume();
+      setPausedFlag(false);
+    }
     sendResponse({ success: true });
     return false;
   }
@@ -112,10 +154,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // Initialize the kokoro worker eagerly so the first OFFSCREEN_GENERATE_AND_PLAY
     // doesn't pay WASM compile + ONNX graph parse + first-execute JIT cost.
     // The worker's _init now also runs a 1-token warmup generate using the
-    // forwarded `voice`, which loads that voice's embedding into RAM too —
+    // forwarded `voice`, which loads that voice's embedding into RAM too,
     // so on the user's first real click, ALL three of those costs are gone.
     // Idempotent: subsequent calls hit mgr.ready and resolve immediately.
-    // Failures are reported back but never thrown — pre-warm is best-effort
+    // Failures are reported back but never thrown; pre-warm is best-effort
     // and the right-click flow still works (just slow on first use) if this
     // fails.
     const mgr = getManager();
@@ -144,7 +186,7 @@ async function handleGenerateAndPlay(text, voice, speed, tabId) {
   const audio = await mgr.generate(text, voice, speed);
 
   // Another run started (or a stop happened) while we were awaiting the
-  // first audio chunk. Don't wire highlight relays to this audio — the
+  // first audio chunk. Don't wire highlight relays to this audio; the
   // newer run already owns currentTabId / activeRunId.
   if (myRunId !== activeRunId) return audio;
 
@@ -154,11 +196,18 @@ async function handleGenerateAndPlay(text, voice, speed, tabId) {
   // catches it ~60s later).
   currentTabId = tabId || null;
 
+  // Clear the paused flag here, not only in onEnded. A new read supersedes the
+  // previous one via ++activeRunId above, which makes the OLD run's onEnded
+  // early-return on the myRunId check and swallow its own clear. Without this
+  // line, starting a read while the previous one was paused would leave
+  // playbackPaused set and the popup would show resume over a playing read.
+  setPausedFlag(false);
+
   if (!audio) return audio;
 
   // Per-chunk timeupdate is only useful when there's a tab to drive a
   // highlight on. For typed-text / Test Voice reads (no tabId), skip the
-  // relay — there's no on-page highlight to feed.
+  // relay; there's no on-page highlight to feed.
   let onTimeUpdate = null;
   let onSentenceStart = null;
   if (tabId) {
@@ -166,7 +215,7 @@ async function handleGenerateAndPlay(text, voice, speed, tabId) {
     // playing. Relay to the SW so the content-script highlight watchdog
     // (60s no-update timeout) gets refreshed during long single-sentence
     // reads where applySentenceStart's noteUpdate alone wouldn't fire
-    // often enough. No advancement — chunk-boundary sentencestart events
+    // often enough. No advancement: chunk-boundary sentencestart events
     // (below) are the sole highlight driver.
     onTimeUpdate = () => {
       try {
@@ -180,7 +229,7 @@ async function handleGenerateAndPlay(text, voice, speed, tabId) {
     audio.addEventListener('timeupdate', onTimeUpdate);
 
     // Precise per-sentence highlight signal. Fires the instant the audio
-    // for a Kokoro chunk starts playing — which is exactly the boundary
+    // for a Kokoro chunk starts playing, which is exactly the boundary
     // between sentences in the worker's segmentation. Sole driver of
     // highlight advancement; the timeupdate path above only refreshes
     // the content-script watchdog (no advancement).
@@ -218,7 +267,7 @@ async function handleGenerateAndPlay(text, voice, speed, tabId) {
   // After firing the relay, dispose the just-finished ChunkedAudio so
   // its AudioContext closes and the per-read decoded AudioBuffers
   // (typically ~1-5 MB) are released for GC. The Kokoro model in the
-  // worker is NOT touched — it stays warm in the worker for the next
+  // worker is NOT touched; it stays warm in the worker for the next
   // read (per the prewarmOnSelection setting). This is just per-read
   // cleanup of the audio queue's transient state.
   const onEnded = () => {
@@ -238,6 +287,13 @@ async function handleGenerateAndPlay(text, voice, speed, tabId) {
         tabId: tabId || null
       });
     } catch (e) { /* ignore */ }
+    // Covers natural end, decode error, worker fatal (kokoro-manager dispatches
+    // 'error' on the audio for those) and the chain-drain deadline, because this
+    // handler is bound to both 'ended' and 'error'. Ordered BEFORE currentTabId
+    // is cleared so the SET_PAUSE_UI relay still has a tab to address: the page
+    // control is also torn down by the STOP_HIGHLIGHT that OFFSCREEN_ENDED
+    // triggers, but the relay should not depend on that second mechanism.
+    setPausedFlag(false);
     if (currentTabId === tabId) currentTabId = null;
 
     // Release the per-read audio cache. dispose() is idempotent so a
@@ -265,6 +321,9 @@ function handleStop() {
   activeRunId++;
   stopHeartbeat();
   if (manager) manager.stop();
+  // Every stop surface lands here: the popup's Stop and Restart both forward
+  // OFFSCREEN_STOP, as does the on-page button and the keyboard path.
+  setPausedFlag(false);
 
   // Clean up the page highlight. mgr.stop() pauses audio without firing
   // `ended`, so the listener registered in handleGenerateAndPlay won't run.
@@ -280,15 +339,3 @@ function handleStop() {
     currentTabId = null;
   }
 }
-
-// Broadcast readiness to the service worker. chrome.offscreen.createDocument()
-// resolves before this module finishes loading, so on the first AI right-click
-// the SW could otherwise post OFFSCREEN_GENERATE_AND_PLAY before our listener
-// is registered. The SW awaits chrome.storage.session.offscreenReady before
-// sending the generate request; subsequent calls hit a warm flag and proceed
-// immediately.
-(async () => {
-  try {
-    await chrome.storage.session.set({ offscreenReady: true });
-  } catch (e) { /* session storage may be unavailable; SW has a ping fallback */ }
-})();

@@ -17,16 +17,16 @@
       <section class="settings-section">
         <h2>Voice Preferences</h2>
         <div class="setting-group">
-          <label>Default Voice</label>
+          <label for="default-voice">Default Voice</label>
           <select id="default-voice">
           </select>
           <p class="setting-help">
-            AI voices run entirely on your device — no audio or text is sent to a server.
+            AI voices run entirely on your device. No audio or text is sent to a server.
           </p>
         </div>
 
         <div class="setting-group">
-          <label>Default Speed</label>
+          <label for="speed-slider">Default Speed</label>
           <div class="speed-control">
             <input type="range" id="speed-slider" min="0.25" max="2" step="0.25" value="1" />
             <span id="speed-value">1.0x</span>
@@ -42,7 +42,7 @@
             <span class="toggle-text">Pre-warm AI voice on text selection</span>
           </label>
           <p class="setting-help">
-            When enabled (recommended), the AI voice model loads in the background as soon as you select text on a page, so the first right-click read of a session feels fast (~1–2&nbsp;seconds). Costs ~95&nbsp;MB of RAM after your first selection. Turn off to keep memory use minimal (~5–10&nbsp;MB) until you explicitly invoke a read — the trade-off is a one-time ~3–6&nbsp;second wait on the first read of each browser session.
+            When enabled (recommended), the AI voice model loads in the background as soon as you select text on a page, so the first right-click read of a session feels fast (~1–2&nbsp;seconds). Costs ~95&nbsp;MB of RAM after your first selection. Turn off to keep memory use minimal (~5–10&nbsp;MB) until you explicitly invoke a read. The trade-off is a one-time ~3–6&nbsp;second wait on the first read of each browser session.
           </p>
         </div>
       </section>
@@ -50,9 +50,13 @@
       <section class="settings-section">
         <h2>About</h2>
         <div class="about-info">
-          <p><strong>Version:</strong> 1.1.0</p>
+          <p><strong>Version:</strong> 1.2.0</p>
           <p><strong>Author:</strong> Lavelle Hatcher Jr</p>
-          <p><strong>License:</strong> Apache 2.0</p>
+          <p><strong>License:</strong> GPL-3.0-or-later</p>
+          <p>Copyright (C) 2026 Lavelle Hatcher Jr</p>
+          <p class="setting-help">
+            This program comes with ABSOLUTELY NO WARRANTY. It is free software, and you are welcome to redistribute it under the terms of the GNU General Public License, version 3 or later. The full license text ships inside this extension as the file LICENSE, and can also be read at https://github.com/lavellehatcherjr/GlowReadTTS/blob/main/LICENSE
+          </p>
         </div>
       </section>
     </main>

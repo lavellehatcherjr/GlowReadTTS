@@ -14,14 +14,8 @@
 
 console.log('[GlowReadTTS] Content script loaded');
 
-// ============================================
-// Highlight-as-you-read Module
-// Primary: CSS Custom Highlight API (Range-based, zero DOM changes)
-// Fallback: CSS class toggling on block elements
-// ============================================
 const GlowReadTTSHighlight = (() => {
 
-  // --- Constants ---
   const HIGHLIGHT_NAME = 'glowreadtts-reading';
   const READING_CLASS = 'glowreadtts-reading-active';
   const FALLBACK_CLASS = 'glowreadtts-sentence-active';
@@ -30,7 +24,6 @@ const GlowReadTTSHighlight = (() => {
   // Feature detection: CSS Custom Highlight API (Chrome 105+, we require 120+)
   const hasHighlightAPI = (typeof CSS !== 'undefined' && 'highlights' in CSS);
 
-  // --- State ---
   let sentences = [];
   let activeSentenceIdx = -1;
   let isHighlightActive = false;
@@ -40,18 +33,30 @@ const GlowReadTTSHighlight = (() => {
   // the displayed one when chunks span multiple page sentences.
   let lastMatchedSentenceIdx = -1;
 
-  // CSS Highlight API state
   let sentenceRanges = [];    // Range per sentence (or null)
   let currentHighlight = null;
 
-  // classList fallback state
   let sentenceBlockMap = [];
 
-  // --- Watchdog: clean up stale highlights ---
   // If no UPDATE/PROGRESS message arrives for WATCHDOG_TIMEOUT_MS while the
   // highlight is active, assume the driver (popup or service worker context)
   // was torn down and clean up. Higher timeout (60s) accommodates voices that
   // don't fire word/sentence boundary events on some platforms.
+  //
+  // Deliberately NOT suppressed while a read is paused, which was considered.
+  // Two reasons. This script cannot read chrome.storage.session at all, since
+  // it defaults to TRUSTED_CONTEXTS and nothing calls setAccessLevel; making
+  // playbackPaused readable here would expose every session key to every
+  // content script on every page, which is a poor trade for a cosmetic gap in
+  // an extension that sells privacy. And suppressing it would disable the one
+  // mechanism that clears an orphan highlight when a paused read dies with the
+  // offscreen document reclaimed, which is exactly the case it exists for.
+  //
+  // The real defect here was that pause() left the sentence timers running, so
+  // the highlight walked ahead of the frozen audio. That is fixed in
+  // kokoro-manager's pause/play. What remains is that a pause longer than 60 s
+  // clears the highlight and it returns at the next sentence boundary on
+  // resume. That is accepted.
   let lastUpdateAt = 0;
   let watchdogTimer = null;
   const WATCHDOG_INTERVAL_MS = 5000;
@@ -84,7 +89,6 @@ const GlowReadTTSHighlight = (() => {
     lastUpdateAt = Date.now();
   }
 
-  // --- Sentence Splitting ---
   // Splits text into sentences. Handles ., !, ? followed by whitespace,
   // and paragraph breaks. Returns [{ text }] entries.
   function splitIntoSentences(text) {
@@ -113,7 +117,6 @@ const GlowReadTTSHighlight = (() => {
     return result;
   }
 
-  // --- Get Visible Text Nodes ---
   // Uses TreeWalker to safely enumerate text nodes without modifying DOM.
   function getVisibleTextNodes() {
     if (!document.body) return [];
@@ -153,7 +156,6 @@ const GlowReadTTSHighlight = (() => {
     return nodes;
   }
 
-  // --- Normalized Text Mapping ---
   // Collapses whitespace and builds a position map from normalized→raw indices.
   // This allows matching innerText sentences (whitespace-normalized) against
   // raw DOM text node content.
@@ -177,7 +179,6 @@ const GlowReadTTSHighlight = (() => {
       }
     }
 
-    // Trim trailing space
     if (normalized.endsWith(' ')) {
       normalized = normalized.slice(0, -1);
       toRaw.pop();
@@ -186,7 +187,6 @@ const GlowReadTTSHighlight = (() => {
     return { normalized: normalized, toRaw: toRaw };
   }
 
-  // --- Create Range from raw text positions ---
   // Maps character positions in the accumulated raw text to DOM Range objects.
   // SECURITY: Uses only new Range(), setStart(), setEnd() - no DOM modification.
   function createRangeFromPositions(rawStart, rawEnd, nodeMap) {
@@ -224,7 +224,6 @@ const GlowReadTTSHighlight = (() => {
     }
   }
 
-  // --- Build Sentence Ranges (CSS Custom Highlight API) ---
   // Walks visible text nodes, builds accumulated text, then creates Range
   // objects for each sentence using normalized text matching.
   function buildSentenceRanges() {
@@ -233,7 +232,6 @@ const GlowReadTTSHighlight = (() => {
     const textNodes = getVisibleTextNodes();
     if (textNodes.length === 0) return;
 
-    // Accumulate raw text from all visible text nodes
     let rawText = '';
     const nodeMap = [];
     for (let i = 0; i < textNodes.length; i++) {
@@ -242,7 +240,6 @@ const GlowReadTTSHighlight = (() => {
       nodeMap.push({ node: textNodes[i], rawStart: start, rawEnd: rawText.length });
     }
 
-    // Build normalized version for fuzzy matching
     const map = buildNormalizedMap(rawText);
     const normalized = map.normalized;
     const toRaw = map.toRaw;
@@ -257,10 +254,8 @@ const GlowReadTTSHighlight = (() => {
         continue;
       }
 
-      // Try exact normalized match first
       let normIdx = normalized.indexOf(needle, searchFrom);
 
-      // Fallback: case-insensitive
       if (normIdx === -1) {
         normIdx = normalized.toLowerCase().indexOf(needle.toLowerCase(), searchFrom);
       }
@@ -280,7 +275,6 @@ const GlowReadTTSHighlight = (() => {
     }
   }
 
-  // --- Map Sentences to Block Elements (classList fallback) ---
   function mapSentencesToBlocks() {
     const allBlocks = document.querySelectorAll(BLOCK_SELECTOR);
     const visibleBlocks = [];
@@ -314,7 +308,6 @@ const GlowReadTTSHighlight = (() => {
     }
   }
 
-  // --- Highlight a Sentence ---
   function highlightSentence(index) {
     if (!isHighlightActive) return;
     if (index === activeSentenceIdx) return;
@@ -329,7 +322,7 @@ const GlowReadTTSHighlight = (() => {
     }
   }
 
-  // CSS Custom Highlight API path - zero DOM modification
+  // Zero DOM modification: the API styles Range objects in place.
   function highlightWithAPI(index) {
     const range = sentenceRanges[index];
     if (!range) return;
@@ -361,11 +354,10 @@ const GlowReadTTSHighlight = (() => {
         }
       }
     } catch (e) {
-      // Range may be invalid
+      // Range may be invalid if DOM changed since we built ranges
     }
   }
 
-  // classList fallback path
   function highlightWithClassList(index) {
     const prev = document.querySelector('.' + FALLBACK_CLASS);
     if (prev) prev.classList.remove(FALLBACK_CLASS);
@@ -380,7 +372,6 @@ const GlowReadTTSHighlight = (() => {
     }
   }
 
-  // --- Chunk-boundary update (from worker SENTENCE_START signal) ---
   // The worker tells us exactly which Kokoro sentence's audio just started.
   // The Kokoro segmenter handles abbreviations / decimals / URLs better than
   // our simple punctuation split, so chunk text doesn't always match a page
@@ -426,18 +417,15 @@ const GlowReadTTSHighlight = (() => {
     }
   }
 
-  // --- Cleanup ---
   // Removes all highlight state. Safe to call multiple times.
   function cleanup() {
     stopWatchdog();
 
-    // CSS Custom Highlight API cleanup
     if (hasHighlightAPI) {
       try { CSS.highlights.delete(HIGHLIGHT_NAME); } catch (e) { /* OK */ }
     }
     currentHighlight = null;
 
-    // classList fallback cleanup
     var highlighted = document.querySelectorAll('.' + FALLBACK_CLASS);
     for (var i = 0; i < highlighted.length; i++) {
       highlighted[i].classList.remove(FALLBACK_CLASS);
@@ -455,12 +443,7 @@ const GlowReadTTSHighlight = (() => {
     lastMatchedSentenceIdx = -1;
   }
 
-  // --- Public API ---
   return {
-    /**
-     * Start highlighting for the given text.
-     * @param {string} text - The text being spoken
-     */
     start: function(text) {
       cleanup();
       if (!text || text.trim().length === 0) return;
@@ -506,9 +489,6 @@ const GlowReadTTSHighlight = (() => {
       applySentenceStartText(chunkText);
     },
 
-    /**
-     * Stop highlighting and clean up.
-     */
     stop: function() {
       cleanup();
       console.log('[GlowReadTTS] Highlight stopped');
@@ -517,11 +497,8 @@ const GlowReadTTSHighlight = (() => {
 })();
 
 
-// ============================================
-// Visible-only selection extraction
-// ============================================
 // Chrome's `info.selectionText` (right-click context) includes hidden DOM
-// content that's part of the user's selected range — most commonly screen-
+// content that's part of the user's selected range, most commonly screen-
 // reader-only nodes (.sr-only, .visually-hidden, etc.) using off-screen
 // positioning or clip-path. The user can't see them, but they end up in
 // the audio anyway, which makes the read sound like it's starting in the
@@ -559,7 +536,7 @@ function isAncestorChainVisible(el) {
 // paragraph→list-item, list-item→list-item, etc.), we treat that as a
 // structural boundary and ensure the prior text fragment ends with
 // terminal punctuation. This makes Kokoro's TextSplitterStream produce
-// a real chunk break at that boundary — which gets the SAME natural
+// a real chunk break at that boundary, which gets the SAME natural
 // inter-chunk pause as a normal sentence end (~10–50 ms perceptual,
 // shaped by our silence trim + 5 ms chunk overlap). NOT a long
 // dramatic pause; just the normal sentence-rhythm pause Kokoro gives
@@ -624,7 +601,7 @@ function extractVisibleSelectionText(range) {
     // Block-boundary detection. If this text node lives in a different
     // block-level ancestor than the previous one, ensure the previous
     // piece ends with sentence-terminating punctuation. Kokoro's
-    // segmenter splits on . ! ? — adding one here turns
+    // segmenter splits on . ! ?, adding one here turns
     // "Heading Body" into "Heading. Body" which becomes two chunks
     // with the same normal inter-chunk pause as any other sentence
     // boundary. Trailing closing-quote / closing-paren is allowed
@@ -647,9 +624,6 @@ function extractVisibleSelectionText(range) {
 }
 
 
-// ============================================
-// Cold-load indicator (loading pill)
-// ============================================
 // On the very first right-click read of a browser session, the worker has
 // to load the 92 MB Kokoro model + voice embedding + JIT-compile WASM
 // kernels (~3–6 s on warm CPUs, longer on cold ones). Without a visible
@@ -657,7 +631,7 @@ function extractVisibleSelectionText(range) {
 //
 // Strategy: schedule the pill 800 ms after START_HIGHLIGHT arrives. If
 // audio actually starts within that window (warm read), the SENTENCE_START
-// handler hides it before it ever appears — so the pill is silent on
+// handler hides it before it ever appears, so the pill is silent on
 // fast reads and only appears when the user is in the cold path.
 let glowreadttsLoadingPill = null;
 let glowreadttsLoadingPillTimer = null;
@@ -694,6 +668,25 @@ function showLoadingPill() {
   glowreadttsLoadingPillAutoHide = setTimeout(hideLoadingPill, GLOWREADTTS_PILL_AUTOHIDE_MS);
 }
 
+/**
+ * Reuse the loading pill's chrome to say one short thing, with no spinner.
+ * Used by the keyboard read command, which has no popup to report into.
+ */
+function showPageMessage(text) {
+  hideLoadingPill();
+  if (!document.body) return;
+  const pill = document.createElement('div');
+  pill.className = 'glowreadtts-loading-pill';
+  const span = document.createElement('span');
+  span.textContent = text;
+  pill.appendChild(span);
+  document.body.appendChild(pill);
+  void pill.offsetWidth;
+  pill.classList.add('glowreadtts-visible');
+  glowreadttsLoadingPill = pill;
+  glowreadttsLoadingPillAutoHide = setTimeout(hideLoadingPill, 2800);
+}
+
 function hideLoadingPill() {
   if (glowreadttsLoadingPillTimer !== null) {
     clearTimeout(glowreadttsLoadingPillTimer);
@@ -715,29 +708,84 @@ function hideLoadingPill() {
 }
 
 
-// ============================================
-// On-page Stop button
-// ============================================
 // Floating top-right button that appears the moment audio starts on a
 // right-click read and disappears when the read ends or the user clicks
 // it. Same design language as the loading pill, but interactive
 // (pointer-events: auto). Click forwards STOP_FROM_PAGE to the SW which
-// relays OFFSCREEN_STOP to the offscreen — same code path as the popup's
+// relays OFFSCREEN_STOP to the offscreen, same code path as the popup's
 // Stop button. Idempotent: showStopButton() is a no-op if the button
 // already exists, so SENTENCE_START firing once per chunk doesn't
 // re-create it.
 let glowreadttsStopButton = null;
+// The positioned wrapper both controls live in, and the pause toggle itself.
+let glowreadttsControlGroup = null;
+let glowreadttsPauseButton = null;
+// Mirrors the offscreen document's playbackPaused so the glyph and the label
+// are right. The content script cannot read chrome.storage.session, which
+// defaults to TRUSTED_CONTEXTS, so the offscreen relays SET_PAUSE_UI through
+// the service worker instead. That also makes a keyboard or popup pause move
+// this button, not just a click on it.
+let glowreadttsPaused = false;
+
+// Icon paths, swapped on the same control rather than shown as two buttons,
+// matching the popup's btn-play-pause.
+const GLOWREADTTS_PAUSE_D = 'M6 4h4v16H6zM14 4h4v16h-4z';
+const GLOWREADTTS_PLAY_D = 'M6 3 20 12 6 21Z';
+
+function glowreadttsApplyPauseUi() {
+  const btn = glowreadttsPauseButton;
+  if (!btn) return;
+  const path = btn.querySelector('path');
+  if (path) path.setAttribute('d', glowreadttsPaused ? GLOWREADTTS_PLAY_D : GLOWREADTTS_PAUSE_D);
+  // Set on the element, so nothing in a later state change can drop it. A user
+  // who cannot see the glyph otherwise cannot tell which action this does.
+  btn.setAttribute('aria-label', glowreadttsPaused ? 'Resume reading' : 'Pause reading');
+  btn.title = glowreadttsPaused ? 'Resume' : 'Pause';
+}
 
 function showStopButton() {
   if (glowreadttsStopButton) return;
   if (!document.body) return;
+
+  const group = document.createElement('div');
+  group.className = 'glowreadtts-controls';
+
+  // Pause / resume. One toggle, not two buttons.
+  const svgNS2 = 'http://www.w3.org/2000/svg';
+  const pauseBtn = document.createElement('button');
+  pauseBtn.className = 'glowreadtts-pause-btn';
+  pauseBtn.type = 'button';
+  const pauseSvg = document.createElementNS(svgNS2, 'svg');
+  pauseSvg.setAttribute('class', 'glowreadtts-pause-icon');
+  pauseSvg.setAttribute('viewBox', '0 0 24 24');
+  pauseSvg.setAttribute('fill', 'currentColor');
+  pauseSvg.setAttribute('aria-hidden', 'true');
+  const pausePath = document.createElementNS(svgNS2, 'path');
+  pausePath.setAttribute('d', GLOWREADTTS_PAUSE_D);
+  pauseSvg.appendChild(pausePath);
+  pauseBtn.appendChild(pauseSvg);
+  pauseBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      // The service worker derives pause vs resume from storage, so this is a
+      // plain toggle request rather than a direction. Same handler the keyboard
+      // command uses, which keeps the two surfaces from disagreeing.
+      chrome.runtime.sendMessage(
+        { target: 'service-worker', action: 'TOGGLE_PAUSE_FROM_PAGE' },
+        () => { void chrome.runtime.lastError; }
+      );
+    } catch (err) { /* SW unavailable; SET_PAUSE_UI just never arrives */ }
+  });
+  glowreadttsPauseButton = pauseBtn;
+  glowreadttsApplyPauseUi();
 
   const btn = document.createElement('button');
   btn.className = 'glowreadtts-stop-btn';
   btn.type = 'button';
   btn.setAttribute('aria-label', 'Stop GlowReadTTS reading');
 
-  // SVG icon — built via DOM API (no innerHTML) for CSP safety.
+  // SVG icon, built via DOM API (no innerHTML) for CSP safety.
   const svgNS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(svgNS, 'svg');
   svg.setAttribute('class', 'glowreadtts-stop-icon');
@@ -766,21 +814,34 @@ function showStopButton() {
         () => { void chrome.runtime.lastError; }
       );
     } catch (err) { /* SW unavailable; UI still responds */ }
-    // Hide immediately for responsiveness — the SW's STOP_HIGHLIGHT
+    // Hide immediately for responsiveness; the SW's STOP_HIGHLIGHT
     // broadcast will arrive shortly after as a confirmation, and the
     // STOP_HIGHLIGHT handler is idempotent against an already-hidden
     // button.
     hideStopButton();
   });
 
-  document.body.appendChild(btn);
+  group.appendChild(pauseBtn);
+  group.appendChild(btn);
+  document.body.appendChild(group);
   // Force reflow so the opacity transition runs.
-  void btn.offsetWidth;
+  void group.offsetWidth;
+  pauseBtn.classList.add('glowreadtts-visible');
   btn.classList.add('glowreadtts-visible');
   glowreadttsStopButton = btn;
+  glowreadttsControlGroup = group;
 }
 
 function hideStopButton() {
+  // The paused flag is per-read, so a stop must not leave the next read's
+  // button showing resume.
+  glowreadttsPaused = false;
+  glowreadttsPauseButton = null;
+  if (glowreadttsControlGroup) {
+    const group = glowreadttsControlGroup;
+    glowreadttsControlGroup = null;
+    setTimeout(() => { try { group.remove(); } catch (e) { /* ignore */ } }, 250);
+  }
   if (glowreadttsStopButton) {
     const btn = glowreadttsStopButton;
     glowreadttsStopButton = null;
@@ -792,9 +853,6 @@ function hideStopButton() {
 }
 
 
-// ============================================
-// Message Handler
-// ============================================
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Content Script] Message received:', request.action);
 
@@ -823,11 +881,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       break;
     }
 
-    // --- Highlight-as-you-read messages ---
     case 'START_HIGHLIGHT':
       GlowReadTTSHighlight.start(request.text);
       // Schedule the cold-load pill. It only shows if audio hasn't
-      // started by GLOWREADTTS_PILL_DELAY_MS — the SENTENCE_START
+      // started by GLOWREADTTS_PILL_DELAY_MS; the SENTENCE_START
       // handler below cancels it on the warm path.
       scheduleLoadingPill();
       sendResponse({ success: true });
@@ -840,14 +897,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     case 'SENTENCE_START':
       GlowReadTTSHighlight.applySentenceStart(request.text);
-      // First chunk's audio just started — kill any pending or visible
+      // First chunk's audio just started. Kill any pending or visible
       // cold-load pill since the user is no longer "waiting."
       hideLoadingPill();
       // ...and surface the on-page Stop button so the user can halt
-      // the read without opening the popup. Idempotent — only creates
+      // the read without opening the popup. Idempotent, only creates
       // the button on the first SENTENCE_START of a read.
       showStopButton();
       sendResponse({ success: true });
+      break;
+
+    case 'SHOW_PAGE_MESSAGE':
+      if (request && typeof request.text === 'string') showPageMessage(request.text);
+      break;
+
+    case 'SET_PAUSE_UI':
+      // Relayed from the offscreen document via the service worker, because
+      // chrome.storage.session is not readable here. Keeps the on-page toggle
+      // correct when the pause came from the keyboard or the popup.
+      glowreadttsPaused = (request && request.paused === true);
+      glowreadttsApplyPauseUi();
       break;
 
     case 'STOP_HIGHLIGHT':
@@ -865,22 +934,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 
-// ============================================
-// Selection-driven prewarm (gated on a user setting)
-// ============================================
 // When the user selects non-trivial text on a page, ping the service
 // worker to start loading the AI voice model in the background. By the
 // time they open the right-click menu and choose "Read with GlowReadTTS",
 // the worker is warm and click-to-audio drops from ~3-6 s (cold) to
 // ~1-2 s (warm).
 //
-// Gated on the `prewarmOnSelection` setting (chrome.storage.local — local
+// Gated on the `prewarmOnSelection` setting (chrome.storage.local, local
 // to this device only, never syncs). Off = extension stays ~5-10 MB
 // until the user explicitly invokes a read. Setting is cached here and
 // updated live via chrome.storage.onChanged so a toggle change in the
 // options page takes effect immediately across all tabs.
 //
-// Latency optimizations vs. the previous implementation:
+// Latency optimizations:
 //   - No debounce: fires on the FIRST selectionchange that has >=5 chars,
 //     so prewarm starts ~500 ms sooner on fast-clicking flows.
 //   - One-shot per page: prewarmedThisDocument flag prevents re-fire
@@ -891,7 +957,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 //     mouse release or keyboard (shift+arrow / ctrl+a) trigger
 //     immediately, not just on the synthetic selectionchange.
 (function setupSelectionPrewarm() {
-  // Default to true — matches the SW-side default in onInstalled. If
+  // Default to true, matches the SW-side default in onInstalled. If
   // chrome.storage isn't yet readable on the very first frame (rare),
   // we'd prewarm on the first selection rather than miss it.
   let prewarmEnabled = true;

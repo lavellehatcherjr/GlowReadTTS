@@ -31,8 +31,9 @@ STAGE_DIR=""
 # assets/ may hold more than icons, so only the five that manifest.json
 # references are named. Never copy assets/ wholesale.
 #
-# LICENSE and NOTICE ship because Apache 2.0 requires both accompany a
-# distribution.
+# LICENSE and NOTICE ship because GPL-3 requires the license text accompany the
+# package, and the Apache 2.0 and MIT texts inside NOTICE accompany the
+# components licensed under them.
 
 ALLOW=(
   manifest.json

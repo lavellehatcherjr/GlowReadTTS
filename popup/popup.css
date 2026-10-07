@@ -15,7 +15,7 @@
   --text-tertiary: #8A8680;
   --text-on-accent: #1A1815;
 
-  /* Brand accent (variable names are historical — values are TEAL).
+  /* Brand accent (variable names are historical; values are TEAL).
      #2A8B8B / rgb(42, 139, 139). Pairs with the warm cream surfaces
      and brand-yellow highlight as a complementary cool accent. */
   --brand-orange: #2A8B8B;
@@ -325,6 +325,20 @@ body {
   color: var(--text-secondary);
 }
 
+/* Visually hidden, still read by assistive technology. #status-live uses this
+   to mirror the status line without the ticking seconds counter. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Actions Section */
 .actions-section {
   padding: 16px 20px;
@@ -508,7 +522,7 @@ body {
   background: var(--brand-orange-hover);
 }
 
-/* Stop Reading banner — surfaces when popup reopens during active playback. */
+/* Stop Reading banner: surfaces when popup reopens during active playback. */
 .stop-reading-banner {
   background: var(--brand-orange);
   color: white;
@@ -555,4 +569,24 @@ body {
 
 .stop-reading-banner .banner-stop-btn:hover {
   background: rgba(255, 255, 255, 0.9);
+}
+
+/* Live keyboard shortcuts, read from chrome.commands.getAll(). One quiet line
+   under the Read button; never a hardcoded chord. */
+.shortcut-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
+.shortcut-link {
+  margin-top: 2px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--accent, #2A8B8B);
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
 }
