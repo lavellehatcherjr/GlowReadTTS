@@ -32,6 +32,7 @@ const FIRST_CHUNK_TIMEOUT_MS = 45_000;
 // generous enough to absorb a busy main thread without ever tripping on a
 // worker that is merely slow.
 const PING_TIMEOUT_MS = 2_000;
+const BUSY_PING_TIMEOUT_MS = 300;
 
 // Bound on waiting for the decode chain to drain once the worker says the
 // stream is done. A chunk between addChunk() and _scheduleChunk() lives in the
@@ -415,6 +416,12 @@ class ChunkedAudio extends EventTarget {
   }
 }
 
+function createAbortError() {
+  const err = new Error('Aborted');
+  err.name = 'AbortError';
+  return err;
+}
+
 class KokoroManager {
   constructor() {
     this.worker = null;
@@ -445,6 +452,11 @@ class KokoroManager {
     // Monotonic nonce for liveness probes, so a late PONG from an earlier
     // probe can't be mistaken for proof that the worker is alive now.
     this._pingNonce = 0;
+
+    this._workerGenerating = false;
+    this._lastGenerateVoice = null;
+    this._userStopCount = 0;
+    this._cancelPendingInit = null;
 
     // Bound once so add/removeEventListener reference the same function.
     // These listeners are attached at worker creation and are deliberately
@@ -529,7 +541,13 @@ class KokoroManager {
     // every occurrence is the underlying accumulation bug happening again,
     // and the reason string is what distinguishes a wedged chain (PONG
     // received, no chunks) from a dead worker (no PONG at all).
-    console.warn('[GlowReadTTS] Worker unresponsive (' + reason + '), recycling');
+    console.warn('[GlowReadTTS] Recycling worker (' + reason + ')');
+
+    if (this._cancelPendingInit) {
+      const cancelPendingInit = this._cancelPendingInit;
+      this._cancelPendingInit = null;
+      cancelPendingInit();
+    }
 
     if (this.audio) {
       try { this.audio.dispose(); } catch (e) { /* ignore */ }
@@ -555,6 +573,7 @@ class KokoroManager {
     // Clear for the replacement worker — otherwise _ensureWorker() would
     // immediately recycle the fresh one it just spawned.
     this._workerDead = false;
+    this._workerGenerating = false;
   }
 
   /**
@@ -564,6 +583,8 @@ class KokoroManager {
    * listeners and they fire over the entire stream, not just chunk 1.
    */
   async generate(text, voice, speed) {
+    const userStopCountAtStart = this._userStopCount;
+
     // Liveness gate. Only worth a round trip when we believe we're already
     // initialised — if `ready` is false the worker is about to be built and
     // INIT'd anyway, and pinging a worker mid-cold-load would just time out
@@ -577,15 +598,24 @@ class KokoroManager {
     // Deliberately placed before `_activeAbort` is assigned further down, so
     // _recycleWorker()'s teardown can't abort the very call that triggered it.
     if (this.ready) {
-      const pong = await this._pingWorker();
-      if (!pong) {
-        this._recycleWorker('no PONG within ' + PING_TIMEOUT_MS + 'ms');
+      const pingedWorker = this.worker;
+      const replacingGeneratingRead = this._workerGenerating;
+      const pingTimeoutMs = replacingGeneratingRead ? BUSY_PING_TIMEOUT_MS : PING_TIMEOUT_MS;
+      const pong = await this._pingWorker(pingTimeoutMs);
+      if (!pong && this.worker === pingedWorker) {
+        this._recycleWorker(replacingGeneratingRead
+          ? 'replacing a read that is still generating, no PONG within ' + pingTimeoutMs + 'ms'
+          : 'unresponsive, no PONG within ' + pingTimeoutMs + 'ms');
       }
     }
+
+    if (this._userStopCount !== userStopCountAtStart) throw createAbortError();
 
     if (!this.ready) {
       await this._init(voice);
     }
+
+    if (this._userStopCount !== userStopCountAtStart) throw createAbortError();
 
     // Supersede any prior in-flight generate (and any prior playing audio).
     // stop() removes the prior listener, disposes its ChunkedAudio, posts
@@ -733,6 +763,7 @@ class KokoroManager {
           }
         } else if (data.event === 'AUDIO_DONE') {
           cleanup();
+          this._workerGenerating = false;
           chunked.markStreamDone();
           if (!resolvedFirst) {
             // Stream ended without yielding any audio (e.g. all-whitespace
@@ -742,6 +773,7 @@ class KokoroManager {
           }
         } else if (data.event === 'ERROR') {
           cleanup();
+          this._workerGenerating = false;
           if (!resolvedFirst) {
             chunked.dispose();
             reject(new Error(data.message));
@@ -774,6 +806,8 @@ class KokoroManager {
       this.worker.addEventListener('error', errorHandler);
       this.worker.addEventListener('messageerror', errorHandler);
       this.worker.postMessage({ action: 'GENERATE', text: text, voice: voice, speed: speed, streamId: myStreamId });
+      this._workerGenerating = true;
+      this._lastGenerateVoice = voice;
     });
   }
 
@@ -803,6 +837,20 @@ class KokoroManager {
     // when no stream is active.
     if (this.worker) {
       try { this.worker.postMessage({ action: 'ABORT' }); } catch (e) { /* ignore */ }
+    }
+  }
+
+  async releaseWorkerAfterUserStop(reloadAfterRecycle) {
+    this._userStopCount++;
+    if (!this.worker || !this._workerGenerating) return;
+    const pingedWorker = this.worker;
+    const reloadVoice = this._lastGenerateVoice;
+    const pong = await this._pingWorker(BUSY_PING_TIMEOUT_MS);
+    if (!pong && this.worker === pingedWorker) {
+      this._recycleWorker('stopped by the user while generating, no PONG within ' + BUSY_PING_TIMEOUT_MS + 'ms');
+    }
+    if (reloadAfterRecycle && !this.ready) {
+      await this._init(reloadVoice);
     }
   }
 
@@ -846,8 +894,9 @@ class KokoroManager {
   async _init(voice) {
     this._ensureWorker();
     if (!this._initPromise) {
-      this._initPromise = new Promise((resolve, reject) => {
+      const initPromise = new Promise((resolve, reject) => {
         const cleanup = () => {
+          if (this._cancelPendingInit === cancelPendingInit) this._cancelPendingInit = null;
           // Null-guarded because _recycleWorker() can now null this.worker
           // while an init is still in flight. generate()'s cleanup() has
           // always guarded this; before recycling existed, _init()'s couldn't
@@ -892,16 +941,22 @@ class KokoroManager {
           this._recycleWorker('init timed out after ' + INIT_TIMEOUT_MS + 'ms');
           reject(new Error('Model init timed out after ' + INIT_TIMEOUT_MS + 'ms'));
         }, INIT_TIMEOUT_MS);
+        const cancelPendingInit = () => {
+          cleanup();
+          reject(createAbortError());
+        };
         this.worker.addEventListener('message', handler);
         this.worker.addEventListener('error', errorHandler);
         this.worker.addEventListener('messageerror', errorHandler);
         this.worker.postMessage({ action: 'INIT', voice: voice });
+        this._cancelPendingInit = cancelPendingInit;
       }).catch(err => {
         // Don't cache a rejected promise — a transient failure shouldn't
         // poison every subsequent generate() call. Caller can retry.
-        this._initPromise = null;
+        if (this._initPromise === initPromise) this._initPromise = null;
         throw err;
       });
+      this._initPromise = initPromise;
     }
     return this._initPromise;
   }

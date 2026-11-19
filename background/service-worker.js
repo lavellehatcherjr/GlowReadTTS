@@ -297,6 +297,15 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   });
 });
 
+async function readPrewarmOnSelection() {
+  try {
+    const stored = await chrome.storage.local.get('prewarmOnSelection');
+    return stored.prewarmOnSelection !== false;
+  } catch (e) {
+    return true;
+  }
+}
+
 /**
  * Pause or resume, deciding from storage rather than from any local toggle.
  *
@@ -632,7 +641,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           // Same code path as the popup's Stop button, just from the page.
           try {
             chrome.runtime.sendMessage(
-              { target: 'offscreen', action: 'OFFSCREEN_STOP' },
+              { target: 'offscreen', action: 'OFFSCREEN_STOP', prewarmOnSelection: await readPrewarmOnSelection() },
               () => { void chrome.runtime.lastError; }
             );
           } catch (e) { /* offscreen unavailable; safe to ignore */ }

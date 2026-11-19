@@ -23,6 +23,7 @@ const state = {
   // Drives the status text's "preparing the voice" vs "generating speech"
   // distinction; nothing else depends on it.
   aiPrewarmReady: false,
+  prewarmOnSelection: true,
   // setInterval id for the elapsed-seconds status cue. null when idle.
   statusTimer: null
 };
@@ -158,12 +159,27 @@ function requestAIPrewarm() {
 // pause / resume of right-click AI reads that the popup doesn't directly own).
 // If the offscreen doc doesn't exist yet, chrome.runtime.lastError is set
 // inside the callback and we ignore it.
-function forwardOffscreenAction(action) {
+function forwardOffscreenAction(action, fields) {
   try {
-    chrome.runtime.sendMessage({ target: 'offscreen', action }, () => {
+    chrome.runtime.sendMessage(Object.assign({ target: 'offscreen', action }, fields), () => {
       void chrome.runtime.lastError;
     });
   } catch (e) { /* offscreen unavailable; safe to ignore */ }
+}
+
+function trackPrewarmSetting() {
+  try {
+    chrome.storage.local.get('prewarmOnSelection')
+      .then(r => { state.prewarmOnSelection = r.prewarmOnSelection !== false; })
+      .catch(() => {});
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.prewarmOnSelection) {
+        state.prewarmOnSelection = changes.prewarmOnSelection.newValue !== false;
+      }
+    });
+  } catch (e) {
+    state.prewarmOnSelection = true;
+  }
 }
 
 // Lazily-loaded voice catalog (single source of truth for shipped Kokoro voices).
@@ -228,6 +244,7 @@ async function initializePopup() {
     await createStopReadingBanner();
     setupEventListeners();
     setupPlaybackStateSync();
+    trackPrewarmSetting();
     await loadSavedSettings();
 
     // Prewarm the model now. Opening the popup is a strong intent signal, and
@@ -672,7 +689,7 @@ function handleStop() {
   // STOP_HIGHLIGHT to the active tab. The offscreen keeps its model warm
   // across reads; we deliberately do NOT dispose it here (disposing would
   // force a 3–8 s reload on the next click).
-  forwardOffscreenAction('OFFSCREEN_STOP');
+  forwardOffscreenAction('OFFSCREEN_STOP', { prewarmOnSelection: state.prewarmOnSelection });
 
   if (state.shouldHighlight) {
     sendHighlightMessage('STOP_HIGHLIGHT');
@@ -693,7 +710,7 @@ function handleRestart() {
     // Stop any in-flight AI read in the offscreen. Mirrors handleStop.
     // Without this, the in-flight offscreen audio would keep playing in
     // parallel with the new restart.
-    forwardOffscreenAction('OFFSCREEN_STOP');
+    forwardOffscreenAction('OFFSCREEN_STOP', { prewarmOnSelection: state.prewarmOnSelection });
 
     if (state.shouldHighlight) {
       sendHighlightMessage('STOP_HIGHLIGHT');

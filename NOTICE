@@ -79,7 +79,13 @@ This product includes the following third-party software:
       localModelPath, remoteHost and useBrowserCache, let the extension load
       the model from files bundled in the extension rather than over the
       network. One getter, backends, exposes env.backends so the ONNX Runtime
-      thread count can be set. See the notice at the top of that file.)
+      thread count can be set. The bundle file's default ONNX Runtime wasm
+      path, set in its Transformers.js code, was also changed from a CDN URL
+      to the copy of those files bundled in the extension. The bundle file's
+      default remote model host, the upstream default value of remoteHost set
+      in its Transformers.js code, was also changed from the Hugging Face URL
+      to an empty string; the remoteHost accessor listed above is a separate
+      addition and is unchanged. See the notice at the top of that file.)
   That one file is a bundle. It also contains the four components below and
   the ONNX Runtime JavaScript API listed above. Minification removed every
   upstream copyright notice from it, so this file is the only record.
@@ -89,7 +95,12 @@ This product includes the following third-party software:
   Licensed under the Apache License, Version 2.0 (full text at the end of this file)
   https://github.com/huggingface/transformers.js
   Bundled inside:
-    libs/kokoro/kokoro.web.js
+    libs/kokoro/kokoro.web.js (MODIFIED by this project in two places. The
+      default ONNX Runtime wasm path was changed from a CDN URL to the copy
+      of those files bundled in the extension. The upstream default value of
+      remoteHost, the default remote model host, was changed from the
+      Hugging Face URL to an empty string. See the notice at the top of that
+      file.)
 
 - Jinja template engine for JavaScript (@huggingface/jinja v0.4.1)
   Copyright (c) 2023 Hugging Face

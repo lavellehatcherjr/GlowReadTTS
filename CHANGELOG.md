@@ -2,6 +2,31 @@
 
 All notable changes to GlowReadTTS are documented here.
 
+## [1.2.2] - 2026-11-20
+
+### Changed
+
+- **Stopping a read now frees the voice engine straight away.** Before, the
+  engine went on generating the rest of the passage after you pressed Stop,
+  only for that audio to be thrown away, which kept your processor busy for up
+  to a minute or more on a long passage. Starting another read shortly after a
+  Stop is now faster, and so is starting a new read while the previous one is
+  still being prepared.
+- **With "Pre-warm AI voice on selection" turned off, the voice is not reloaded
+  in the background after a Stop.** It loads when you next start a read, as that
+  setting promises.
+- **The bundled runtime's default wasm path now points at the files included in
+  the extension instead of a CDN.** The CDN path was never requested at runtime.
+- **The bundled runtime's default remote model host was emptied.** That host was
+  never contacted, because the model loads from the files included in the
+  extension.
+
+### Fixed
+
+- **Pressing Stop while the voice is still loading now stops the read.**
+  Previously the read could start anyway once loading finished, playing with no
+  on-page controls while the popup said it had stopped.
+
 ## [1.2.1] - 2026-11-19
 
 ### Changed

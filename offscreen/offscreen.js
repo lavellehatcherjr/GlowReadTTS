@@ -122,7 +122,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.action === 'OFFSCREEN_STOP') {
-    handleStop();
+    handleStop(msg.prewarmOnSelection !== false);
     sendResponse({ success: true });
     return false;
   }
@@ -312,7 +312,7 @@ async function handleGenerateAndPlay(text, voice, speed, tabId) {
   return audio;
 }
 
-function handleStop() {
+function handleStop(reloadAfterRecycle) {
   // Invalidate any in-flight run's onEnded listener BEFORE we tear down the
   // manager. mgr.stop() disposes the current ChunkedAudio (which closes the
   // AudioContext); any stray 'error' fired during teardown would otherwise
@@ -337,5 +337,11 @@ function handleStop() {
       });
     } catch (e) { /* ignore */ }
     currentTabId = null;
+  }
+
+  if (manager) {
+    manager.releaseWorkerAfterUserStop(reloadAfterRecycle).catch((err) => {
+      console.warn('[GlowReadTTS] Reload after stop failed:', err && err.message ? err.message : String(err));
+    });
   }
 }
