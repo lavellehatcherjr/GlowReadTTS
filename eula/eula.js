@@ -303,36 +303,8 @@ SECTION 14: CHROME WEB STORE COMPLIANCE
 document.getElementById('eula-text').textContent = EULA_TEXT;
 document.getElementById('privacy-text').textContent = PRIVACY_TEXT;
 
-const content = document.getElementById('eula-content');
-const checkbox = document.getElementById('eula-checkbox');
 const acceptBtn = document.getElementById('btn-accept');
 const declineBtn = document.getElementById('btn-decline');
-const scrollNotice = document.getElementById('scroll-notice');
-
-// Unlock the checkbox only after the user has scrolled to the bottom of the
-// policy. A 20px tolerance handles sub-pixel rounding on hi-DPI displays.
-function checkScrolledToBottom() {
-  const atBottom = content.scrollTop + content.clientHeight >= content.scrollHeight - 20;
-  if (atBottom) {
-    checkbox.disabled = false;
-    scrollNotice.classList.add('hidden');
-  }
-}
-
-content.addEventListener('scroll', checkScrolledToBottom);
-
-// Some viewports are tall enough that the content fits without scrolling. In
-// that case the user has already "read" everything visible, so unlock immediately.
-window.addEventListener('load', () => {
-  if (content.scrollHeight <= content.clientHeight + 20) {
-    checkbox.disabled = false;
-    scrollNotice.classList.add('hidden');
-  }
-});
-
-checkbox.addEventListener('change', () => {
-  acceptBtn.disabled = !checkbox.checked;
-});
 
 acceptBtn.addEventListener('click', async () => {
   // First-run onboarding: if the user has never been shown the
@@ -391,4 +363,13 @@ function renderDeclineMessage() {
 
   wrapper.append(heading, msg1, msg2, msg3, msg4);
   container.append(wrapper);
+}
+
+for (const [linkId, detailsId] of [['link-terms', 'terms-details'],
+                                   ['link-privacy', 'privacy-details']]) {
+  const link = document.getElementById(linkId);
+  const details = document.getElementById(detailsId);
+  if (link && details) {
+    link.addEventListener('click', () => { details.open = true; });
+  }
 }

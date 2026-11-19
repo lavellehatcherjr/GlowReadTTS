@@ -2,6 +2,15 @@
 
 All notable changes to GlowReadTTS are documented here.
 
+## [1.2.1] - 2026-11-19
+
+### Changed
+
+- **The terms screen is now a single short page instead of a scroll-through
+  agreement.** The full Terms of Use and Privacy Policy are still on it, one click
+  away, and accepting works the same way. The terms themselves did not change, so
+  anyone who has already accepted the current version will not be asked again.
+
 ## [1.2.0] - 2026-10-08
 
 ### Added

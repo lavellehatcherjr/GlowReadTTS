@@ -20,7 +20,7 @@ Either way, an EULA tab opens automatically after install. Accept it before usin
 
 ## First-time setup
 
-The EULA tab shows the Terms of Use and Privacy Policy. Scroll to the bottom (the checkbox is disabled until you reach the end), tick the agreement box, click **Accept & Continue**. The tab closes and the extension is active.
+The EULA tab shows the Terms of Use and Privacy Policy. Open either one from its link to read it in full, then click **Accept & Continue**. The tab closes and the extension is active.
 
 If you click **Decline**, the extension stays installed but every feature is gated. Click the toolbar icon and **Review Terms** when you're ready to come back. Future material updates to the agreement may re-prompt; cosmetic changes won't.
 

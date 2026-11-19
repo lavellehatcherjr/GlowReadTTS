@@ -10,31 +10,35 @@
   <div class="eula-container">
     <div class="eula-header">
       <h1>GlowReadTTS</h1>
-      <p>Please review and accept our Terms of Use and Privacy Policy to continue.</p>
     </div>
 
-    <div class="eula-content" id="eula-content">
-      <h2>Terms of Use (End User License Agreement)</h2>
-      <div id="eula-text"></div>
+    <p class="eula-lede">
+      GlowReadTTS runs entirely on your device. No account, no network requests,
+      nothing leaves your computer. Free and open source under the GNU GPL v3.
+    </p>
 
-      <h2>Privacy Policy</h2>
-      <div id="privacy-text"></div>
-    </div>
-
-    <div class="eula-scroll-notice" id="scroll-notice">
-      Scroll down to read the full agreement
-    </div>
+    <p class="eula-assent">
+      By clicking Accept &amp; Continue you agree to the
+      <a href="#terms-details" id="link-terms">Terms of Use</a> and
+      <a href="#privacy-details" id="link-privacy">Privacy Policy</a>.
+    </p>
 
     <div class="eula-actions">
-      <label class="eula-checkbox-label">
-        <input type="checkbox" id="eula-checkbox" disabled>
-        <span>I have read and agree to the Terms of Use and Privacy Policy</span>
-      </label>
       <div class="eula-buttons">
         <button id="btn-decline" class="eula-btn eula-btn-decline">Decline</button>
-        <button id="btn-accept" class="eula-btn eula-btn-accept" disabled>Accept &amp; Continue</button>
+        <button id="btn-accept" class="eula-btn eula-btn-accept">Accept &amp; Continue</button>
       </div>
     </div>
+
+    <details class="eula-details" id="terms-details">
+      <summary>Terms of Use (End User License Agreement)</summary>
+      <div class="eula-text" id="eula-text"></div>
+    </details>
+
+    <details class="eula-details" id="privacy-details">
+      <summary>Privacy Policy</summary>
+      <div class="eula-text" id="privacy-text"></div>
+    </details>
   </div>
   <script src="eula.js"></script>
 </body>
