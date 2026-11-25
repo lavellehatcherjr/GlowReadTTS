@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "GlowReadTTS - Text to Speech Voice Reader",
   "short_name": "GlowReadTTS",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "On-device AI voices read selected text aloud with highlight-as-you-read. Fully offline. No accounts, no tracking.",
   "author": "Lavelle Hatcher Jr",
   
@@ -28,7 +28,7 @@
   ],
 
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self'"
   },
 
   "cross_origin_embedder_policy": {

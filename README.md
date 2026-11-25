@@ -20,7 +20,7 @@ https://github.com/user-attachments/assets/3907923e-1b0b-4ef5-92be-14e9553f21ec
 
 ## Features
 
-- **AI Voices** - 15 bundled on-device neural voices (American and British English). ~96MB of model weights ship with the extension; no API keys, no downloads, no network calls.
+- **AI Voices** - 15 bundled on-device neural voices (American and British English). ~91MB of model weights ship with the extension; no API keys, no downloads, no network calls.
 - **Text Input** - Paste or type any text and hear it read aloud
 - **Right-Click Reading** - Select text on any webpage, right-click, choose "Read with GlowReadTTS" - with highlight-as-you-read on the page
 - **On-Page Controls** - Floating Pause and Stop buttons appear top-right of the page during right-click reads, so you can pause or halt without opening the popup
@@ -58,7 +58,7 @@ The download is around 132 MB, because the neural voice model ships inside the e
 GlowReadTTS uses AI-powered voices that run entirely on your device. These voices:
 
 - Sound significantly more natural than typical OS speech engines
-- Are bundled with the extension (~96MB) - no runtime download, no network calls
+- Are bundled with the extension (~91MB) - no runtime download, no network calls
 - Require no API keys, accounts, or ongoing costs
 - Support American and British English with 15 curated AI voices
 - Stream sentence-by-sentence so audio starts playing within ~1–2 seconds of your click on capable hardware

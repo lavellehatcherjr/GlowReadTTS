@@ -94,7 +94,7 @@ GlowReadTTS doesn't collect any data, doesn't track you, and doesn't require an 
 
 **Audio sounds choppy or distorted.** Most often this is CPU load (close other tabs/apps) or extreme speed settings - 0.25× and 2× can introduce artifacts depending on the voice. The 0.75×–1.75× range is generally cleanest.
 
-**The first read of a session takes a long time before audio starts.** With the *Performance → Pre-warm AI voice on selection* toggle ON (the default), the 92 MB neural model starts loading the moment you highlight text on a page, so your first right-click read usually starts in ~1–2 seconds. If you've turned the toggle OFF, the model only loads when you explicitly trigger a read - so the first right-click / Read Text / Test Voice in a browser session pays a one-time ~3–6 second cold-load (longer on slower CPUs). Either way, every read after the first in the same session starts within ~1–2 seconds.
+**The first read of a session takes a long time before audio starts.** With the *Performance → Pre-warm AI voice on selection* toggle ON (the default), the 84 MB neural model starts loading the moment you highlight text on a page, so your first right-click read usually starts in ~1–2 seconds. If you've turned the toggle OFF, the model only loads when you explicitly trigger a read - so the first right-click / Read Text / Test Voice in a browser session pays a one-time ~3–6 second cold-load (longer on slower CPUs). Either way, every read after the first in the same session starts within ~1–2 seconds.
 
 **A keyboard shortcut does nothing.** Chrome may not have assigned it. Open `chrome://extensions/shortcuts`, find GlowReadTTS, and set the keys yourself. The popup's shortcut line says *unassigned* when this is the case.
 

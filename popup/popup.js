@@ -445,6 +445,7 @@ async function createUI() {
           class="text-input"
           placeholder="Paste or type text here to read it aloud..."
           rows="4"
+          spellcheck="false"
         ></textarea>
         <div class="text-actions">
           <button id="btn-read-text" class="action-btn-primary">

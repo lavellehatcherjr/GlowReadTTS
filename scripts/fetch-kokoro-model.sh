@@ -13,8 +13,6 @@
 # already has them. Run this only to re-derive libs/kokoro-model/ from
 # upstream, e.g. after deleting it to verify the bundled files match.
 #
-# Requires: curl, ~96 MB free disk, network access to huggingface.co.
-#
 # NOT fetched by this script: the ONNX Runtime Web files under libs/onnx/.
 # They are vendored separately and recorded here so their source is written down
 # somewhere. Both are byte-identical to the files in the dist/ directory of the
@@ -36,7 +34,12 @@ set -u
 cd "$(dirname "$0")/.."
 
 OUT_DIR="libs/kokoro-model"
-BASE="https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main"
+BASE="https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231"
+SUMS="scripts/kokoro-model.sha256"
+MODEL_OUT="$OUT_DIR/onnx/model_quantized.onnx"
+SOURCE_SHA256="8fbea51ea711f2af382e88c833d9e288c6dc82ce5e98421ea61c058ce21a34cb"
+PYTHON="${PYTHON:-python3}"
+WORK_DIR=""
 
 VOICES=(
   af_heart af_bella af_nicole af_aoede af_kore af_sarah af_alloy af_nova
@@ -55,27 +58,107 @@ MISSING=0
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+cleanup() {
+  if [ -n "$WORK_DIR" ] && [ -d "$WORK_DIR" ]; then
+    rm -rf "$WORK_DIR"
+  fi
+}
+trap cleanup EXIT
+
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  else
+    shasum -a 256 "$1" | cut -d' ' -f1
+  fi
+}
+
+expected_sha256() {
+  awk -v p="$1" '$2 == p { print $1 }' "$SUMS"
+}
+
+convert_model() {
+  local url="$1" out="$2" want="$3"
+  WORK_DIR="$(mktemp -d)"
+  echo "    downloading onnx/model.onnx"
+  if ! curl -sLfo "$WORK_DIR/model.onnx" "$url"; then
+    echo "  ✗ FAILED to download $url"
+    return 1
+  fi
+  if [ "$(sha256_of "$WORK_DIR/model.onnx")" != "$SOURCE_SHA256" ]; then
+    echo "  ✗ CHECKSUM MISMATCH: onnx/model.onnx is not the expected source model"
+    return 1
+  fi
+  echo "    verified onnx/model.onnx, installing pinned conversion tools"
+  if ! "$PYTHON" -m venv "$WORK_DIR/venv"; then
+    echo "  ✗ FAILED to create a Python virtual environment with $PYTHON"
+    return 1
+  fi
+  if ! "$WORK_DIR/venv/bin/python" -m pip install -q --no-cache-dir --disable-pip-version-check --require-hashes -r scripts/requirements-convert.txt; then
+    echo "  ✗ FAILED to install scripts/requirements-convert.txt"
+    return 1
+  fi
+  echo "    converting"
+  if ! "$WORK_DIR/venv/bin/python" scripts/convert-kokoro-model.py "$WORK_DIR/model.onnx" "$WORK_DIR/model_quantized.onnx"; then
+    echo "  ✗ FAILED to convert onnx/model.onnx"
+    return 1
+  fi
+  if [ "$(sha256_of "$WORK_DIR/model_quantized.onnx")" != "$want" ]; then
+    echo "  ✗ CHECKSUM MISMATCH: the converted model does not match $SUMS"
+    return 1
+  fi
+  mv "$WORK_DIR/model_quantized.onnx" "$out"
+  rm -rf "$WORK_DIR"
+  WORK_DIR=""
+}
+
 fetch() {
   # $1 = url, $2 = output path
   local url="$1" out="$2"
+  local want
+  want="$(expected_sha256 "$out")"
+  if [ -z "$want" ]; then
+    echo "  ✗ NO CHECKSUM: $out is not listed in $SUMS"
+    return 1
+  fi
   if [ "$VERIFY_ONLY" -eq 1 ]; then
     if [ ! -s "$out" ]; then
       echo "  ✗ MISSING: $out"
       return 1
     fi
-    echo "  ✓ exists:  $out ($(du -h "$out" | cut -f1))"
+    if [ "$(sha256_of "$out")" != "$want" ]; then
+      echo "  ✗ CHECKSUM MISMATCH: $out"
+      return 1
+    fi
+    echo "  ✓ verified: $out ($(du -h "$out" | cut -f1))"
     return 0
   fi
   if [ -s "$out" ]; then
+    if [ "$(sha256_of "$out")" != "$want" ]; then
+      echo "  ✗ CHECKSUM MISMATCH: $out does not match $SUMS. Delete it and run again."
+      return 1
+    fi
     echo "  ✓ already have: $out ($(du -h "$out" | cut -f1))"
     return 0
   fi
   mkdir -p "$(dirname "$out")"
   echo "  ⇣ fetching: $out"
-  if ! curl -sLfo "$out" "$url"; then
-    echo "  ✗ FAILED to download $url"
-    rm -f "$out"
-    return 1
+  if [ "$out" = "$MODEL_OUT" ]; then
+    if ! convert_model "$url" "$out" "$want"; then
+      rm -f "$out"
+      return 1
+    fi
+  else
+    if ! curl -sLfo "$out" "$url"; then
+      echo "  ✗ FAILED to download $url"
+      rm -f "$out"
+      return 1
+    fi
+    if [ "$(sha256_of "$out")" != "$want" ]; then
+      echo "  ✗ CHECKSUM MISMATCH: $out"
+      rm -f "$out"
+      return 1
+    fi
   fi
   echo "    saved $(du -h "$out" | cut -f1)"
 }
@@ -104,11 +187,31 @@ if ! command -v curl >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
+  echo "ERROR: sha256sum or shasum is required but neither is installed."
+  exit 1
+fi
+
+if [ ! -f "$SUMS" ]; then
+  echo "ERROR: $SUMS not found."
+  exit 1
+fi
+
+if [ "$VERIFY_ONLY" -eq 0 ] && [ ! -s "$MODEL_OUT" ]; then
+  if ! "$PYTHON" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)' >/dev/null 2>&1; then
+    echo "ERROR: converting the model needs Python 3.12 or later, and $PYTHON is not."
+    echo "       Install Python 3.12 or later, or set PYTHON to one, for example:"
+    echo "       PYTHON=python3.12 bash scripts/fetch-kokoro-model.sh"
+    exit 1
+  fi
+fi
+
 if [ "$VERIFY_ONLY" -eq 1 ]; then
   echo "=== Verify-only mode (no downloads) ==="
 else
-  echo "=== Fetching Kokoro-82M-v1.0-ONNX (q8) into $OUT_DIR/ ==="
+  echo "=== Fetching Kokoro-82M-v1.0-ONNX into $OUT_DIR/ ==="
   echo "Source: $BASE"
+  echo "Needs: curl, Python 3.12 or later, and about 510 MB of free disk."
 fi
 echo ""
 
@@ -120,14 +223,8 @@ grab "$BASE/tokenizer.json"         "$OUT_DIR/tokenizer.json"
 grab "$BASE/tokenizer_config.json"  "$OUT_DIR/tokenizer_config.json"
 echo ""
 
-# ── model weights (~92 MB at q8) ────────────────────────────────────────────
-
-# Use the q8-quantized variant (model_quantized.onnx, ~92 MB). transformers.js
-# resolves dtype:'q8' to this filename. q4 was tested first and turned out to
-# be larger (~290 MB) due to outlier-weight handling, plus over GitHub's
-# 100 MB per-file limit.
-echo "Model weights (q8 ~92 MB)..."
-grab "$BASE/onnx/model_quantized.onnx"   "$OUT_DIR/onnx/model_quantized.onnx"
+echo "Model weights (converted from onnx/model.onnx, about 84 MB)..."
+grab "$BASE/onnx/model.onnx"             "$MODEL_OUT"
 echo ""
 
 # ── voice embeddings (~1 MB each, 15 total) ─────────────────────────────────
@@ -143,9 +240,9 @@ echo ""
 if [ "$VERIFY_ONLY" -eq 1 ]; then
   echo "=== Verify complete ==="
   if [ "$MISSING" -eq 0 ]; then
-    echo "All $CHECKED files present."
+    echo "All $CHECKED files present and matching $SUMS."
   else
-    echo "$MISSING of $CHECKED files missing. Re-run without --verify to fetch them."
+    echo "$MISSING of $CHECKED files missing or not matching $SUMS. Delete any that do not match, then run again without --verify."
     exit 1
   fi
 else
@@ -160,7 +257,7 @@ else
     if [ "$SIZE_MB" -gt 100 ]; then
       echo ""
       echo "WARNING: model_quantized.onnx exceeds GitHub's 100 MB per-file limit."
-      echo "         Unexpected — this file is normally ~92 MB. Verify the download."
+      echo "         Unexpected. This file is normally about 84 MB. Verify the conversion."
     else
       echo ""
       echo "✓ Under GitHub's 100 MB limit. Safe to commit directly to git."

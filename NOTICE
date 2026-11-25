@@ -28,11 +28,25 @@ This product includes the following third-party software:
   Licensed under the Apache License, Version 2.0
   https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX
   Bundled files:
-    libs/kokoro-model/onnx/model_quantized.onnx (8-bit quantized model weights, ~92 MB)
+    libs/kokoro-model/onnx/model_quantized.onnx (model weights converted by
+      this project, 83,620,174 bytes, ~84 MB; see below)
     libs/kokoro-model/voices/*.bin (15 voice embeddings, 522,240 bytes each, 7.8 MB total)
     libs/kokoro-model/config.json
     libs/kokoro-model/tokenizer.json
     libs/kokoro-model/tokenizer_config.json
+  libs/kokoro-model/onnx/model_quantized.onnx is a conversion produced by this
+  project. It is NOT the upstream file onnx/model_quantized.onnx, although it
+  has the same name. It was converted from the upstream file onnx/model.onnx
+  at revision 1939ad2a8e416c0acfeecc08a694d14ef25f2231, sha256
+  8fbea51ea711f2af382e88c833d9e288c6dc82ce5e98421ea61c058ce21a34cb. The
+  conversion stores the large weight tensors, 179 of the 507 float tensors in
+  that file, as symmetric int8 per output channel, with fp32 scales and a zero
+  point of 0. Those 179 are the Conv, ConvTranspose, MatMul, Gemm and LSTM
+  weights of 4,096 or more elements. Embeddings, biases and smaller tensors
+  remain fp32, and computation runs in fp32. scripts/convert-kokoro-model.py
+  and scripts/fetch-kokoro-model.sh reproduce the file from that upstream
+  file, and the output sha256 is
+  75d0cdf630081c304f1249c39cad4924651fd9af6dfda70f6c0e94122663f3a7.
 
 - ONNX Runtime Web (npm package onnxruntime-web@1.22.0-dev.20250409-89f8206ba4)
   Copyright (c) Microsoft Corporation

@@ -2,6 +2,21 @@
 
 All notable changes to GlowReadTTS are documented here.
 
+## [1.2.3] - 2026-11-25
+
+### Changed
+
+- **Speech is generated faster on most computers, with shorter pauses between
+  sentences.** The bundled voice model was replaced with a version that runs
+  faster.
+- **The bundled voice model file is smaller, but the download is larger.** The
+  model is now about 84 MB, down from about 92 MB. It compresses less well, so
+  the download is about 87 MB, up from about 76 MB.
+- **Chrome no longer spell-checks the popup's text box, including when
+  Enhanced spell check is turned on.**
+- **Chrome now refuses data requests from the extension's pages, background
+  worker and voice engine to anything outside the extension.**
+
 ## [1.2.2] - 2026-11-20
 
 ### Changed
